@@ -32,7 +32,12 @@ looking for is what you come away with.
 The tool being read is not modified and nothing is installed into it. Only
 --help is run, at each level, plus a framework's own completion callback where
 there is one. A bare subcommand is never run, because a noun that performs a
-read when invoked with no verb would perform it.`,
+read when invoked with no verb would perform it.
+
+That bounds what helpnav asks for, not what a tool does when asked. Answering
+--help means starting the program, so whatever it does before printing happens
+too. A tool that opens a window rather than printing is named in
+` + "`helpnav do-not-run`" + ` and is never started.`,
 	Example: `  helpnav docker      a large tree, read one level at a time
   helpnav uv          a Rust tool; the reader does not care which language
   helpnav helpnav     this tool, read by itself`,
@@ -84,6 +89,9 @@ func init() {
 // on. Walking away prints nothing, so a caller substituting the output gets an
 // empty string rather than a command nobody chose.
 func browse(cmd *cobra.Command, binary string) error {
+	if _, listed := doNotRun(binary); listed {
+		return refuseToRun(binary)
+	}
 	argv, err := tui.Run(binary, depthFlag)
 	if err != nil {
 		return err
