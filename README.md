@@ -6,12 +6,27 @@ Browse a command-line tool's help as a tree, and leave with the command typed.
 subcommand three levels down means running it four times and holding the shape
 in your head. helpnav reads all of it up front and gives you the tree.
 
-## What it does to the tool it reads
+## What it asks a tool for, and what that costs
 
-Nothing. It runs `--help` at each level, plus a framework's own completion
-callback where there is one, and reads what comes back. It never runs a bare
-subcommand, because a noun that performs a read when invoked with no verb would
-perform it.
+It runs `--help` at each level, plus a framework's own completion callback where
+there is one, and reads what comes back. It never runs a bare subcommand,
+because a noun that performs a read when invoked with no verb would perform it.
+
+That bounds what helpnav asks for, not what a tool does when asked. Answering
+`--help` means starting the program, so everything the program does before it
+prints happens too — a group callback, an update check, a lazily cloned config
+repo. Some tools ignore `--help` and open a window instead.
+
+Those are named in a list helpnav will not run:
+
+```sh
+helpnav do-not-run
+```
+
+It ships knowing about `bitwarden` and `claude-desktop`. Add to it in
+`~/.config/helpnav/do-not-run.txt`: one tool per line, a reason after the name,
+`#` for a comment. The list is written by hand, because you know a desktop app
+is not a CLI before it costs you twenty seconds finding out.
 
 It works on tools that know nothing about it, in any language. cobra, Typer,
 Click, clap and hand-rolled help screens are all read the same way, by

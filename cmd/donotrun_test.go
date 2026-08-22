@@ -24,6 +24,14 @@ func TestALineSplitsIntoToolAndReason(t *testing.T) {
 	}
 }
 
+func TestTheListLivesUnderXDGConfigWithAnExtension(t *testing.T) {
+	t.Setenv("XDG_CONFIG_HOME", "/xdg")
+
+	if got, want := doNotRunPath(), "/xdg/helpnav/do-not-run.txt"; got != want {
+		t.Errorf("path = %q, want %q", got, want)
+	}
+}
+
 // The built-in list stands on a machine with no config file, because a desktop
 // app is not a CLI whether or not anyone has written that down yet.
 func TestTheBuiltinListStandsWithoutAConfigFile(t *testing.T) {
@@ -44,7 +52,7 @@ func TestTheFileAddsToTheBuiltinList(t *testing.T) {
 		t.Fatal(err)
 	}
 	body := "# mine\nobsidian   an Electron note app\n\nfigma\n"
-	if err := os.WriteFile(filepath.Join(dir, "helpnav", "do-not-run"), []byte(body), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, "helpnav", "do-not-run.txt"), []byte(body), 0o644); err != nil {
 		t.Fatal(err)
 	}
 

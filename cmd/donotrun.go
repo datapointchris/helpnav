@@ -62,6 +62,10 @@ var builtinDoNotRun = map[string]string{
 // doNotRunPath is where a person adds to the list without waiting for a
 // release. One name per line, `#` starts a comment, and a reason after the name
 // is shown when the tool is refused.
+//
+// Plain text rather than YAML or TOML: the file is a list of names, and the
+// comment syntax already carries the explanation a structured format would be
+// chosen for. Neither would earn the parser it costs.
 func doNotRunPath() string {
 	dir := os.Getenv("XDG_CONFIG_HOME")
 	if dir == "" {
@@ -71,7 +75,7 @@ func doNotRunPath() string {
 		}
 		dir = filepath.Join(home, ".config")
 	}
-	return filepath.Join(dir, "helpnav", "do-not-run")
+	return filepath.Join(dir, "helpnav", "do-not-run.txt")
 }
 
 // doNotRun reports why a tool must not be read, and whether it is listed at all.
