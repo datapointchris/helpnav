@@ -9,10 +9,11 @@ import (
 	"strings"
 	"syscall"
 
-	"github.com/datapointchris/clisurface"
 	"github.com/datapointchris/goselfupdate/autoupdate"
 	"github.com/datapointchris/goselfupdate/cobracmd"
 	"github.com/spf13/cobra"
+
+	"github.com/datapointchris/helpnav/tui"
 )
 
 var depthFlag int
@@ -79,27 +80,17 @@ func init() {
 		"how many words deep to read (0 reads far enough for a hand-written tool)")
 }
 
-// browse reads one tool's surface and hands it to the reader.
+// browse opens the reader on one tool and prints whatever command it was left
+// on. Walking away prints nothing, so a caller substituting the output gets an
+// empty string rather than a command nobody chose.
 func browse(cmd *cobra.Command, binary string) error {
-	tool, err := clisurface.Extract(binary, clisurface.Options{
-		WithBody: true,
-		MaxDepth: depthFlag,
-	})
+	argv, err := tui.Run(binary, depthFlag)
 	if err != nil {
 		return err
 	}
-
-	out := cmd.OutOrStdout()
-	if _, err := fmt.Fprintf(out, "%s  (%s)\n", tool.Binary, tool.Framework); err != nil {
-		return err
+	if len(argv) == 0 {
+		return nil
 	}
-	var walkErr error
-	tool.Walk(func(n *clisurface.Node) {
-		if walkErr != nil {
-			return
-		}
-		indent := strings.Repeat("  ", len(n.Path))
-		_, walkErr = fmt.Fprintf(out, "%s%s  %s\n", indent, n.Name, n.Short)
-	})
-	return walkErr
+	_, err = fmt.Fprintln(cmd.OutOrStdout(), strings.Join(argv, " "))
+	return err
 }
