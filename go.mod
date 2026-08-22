@@ -9,7 +9,7 @@ require (
 	github.com/charmbracelet/bubbletea v1.3.10
 	github.com/charmbracelet/lipgloss v1.1.0
 	github.com/charmbracelet/x/ansi v0.11.8
-	github.com/datapointchris/clisurface v0.2.0
+	github.com/datapointchris/clisurface v0.2.4
 	github.com/datapointchris/goselfupdate v0.8.1
 	github.com/spf13/cobra v1.10.2
 )
