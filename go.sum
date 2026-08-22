@@ -19,8 +19,8 @@ github.com/clipperhouse/displaywidth v0.11.0/go.mod h1:bkrFNkf81G8HyVqmKGxsPufD3
 github.com/clipperhouse/uax29/v2 v2.7.0 h1:+gs4oBZ2gPfVrKPthwbMzWZDaAFPGYK72F0NJv2v7Vk=
 github.com/clipperhouse/uax29/v2 v2.7.0/go.mod h1:EFJ2TJMRUaplDxHKj1qAEhCtQPW2tJSwu5BF98AuoVM=
 github.com/cpuguy83/go-md2man/v2 v2.0.6/go.mod h1:oOW0eioCTA6cOiMLiUPZOpcVxMig6NIQQ7OS05n1F4g=
-github.com/datapointchris/clisurface v0.1.0 h1:LtoqtC7rAILDmfv1TMPck0FSyB764bofuuTCEHSxNIM=
-github.com/datapointchris/clisurface v0.1.0/go.mod h1:gUe+cCfMed7G/Q84mc+d8nfy4QcXJrT43RTE/bzh8I8=
+github.com/datapointchris/clisurface v0.2.0 h1:2KOYpdhQSQaX5ALdORCQiF/QsRJpdDt0WIHXW1azVsw=
+github.com/datapointchris/clisurface v0.2.0/go.mod h1:gUe+cCfMed7G/Q84mc+d8nfy4QcXJrT43RTE/bzh8I8=
 github.com/datapointchris/goselfupdate v0.8.1 h1:/7LoL19T/uuV7CHB1NSHiNDRn7mutqtl2TOR00J07mc=
 github.com/datapointchris/goselfupdate v0.8.1/go.mod h1:JxrEHU/23s5hxBnTdKe+3GRbTCuvzmPIjuE8yBfQAN8=
 github.com/erikgeiser/coninput v0.0.0-20211004153227-1c3628e74d0f h1:Y/CXytFA4m6baUTXGLOoWe4PQhGxaX0KpnayAqC48p4=

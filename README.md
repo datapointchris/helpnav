@@ -66,5 +66,5 @@ and a Python one in about 200ms, so `docker` at 132 commands takes about three
 seconds and `uv` at 60 takes under a tenth.
 
 The walk stops four words past the tool's own name. Nothing measured reaches
-that — `gh`, `kubectl` and `icb` are the deepest at three words — so `--depth`
+that — `gh` and `kubectl` are the deepest at three words — so `--depth`
 is there for a surface that goes further, not for one anybody has hit.
