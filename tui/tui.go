@@ -32,6 +32,10 @@ const (
 // surfaceMsg carries a finished reading back into the loop.
 type surfaceMsg struct{ tool *clisurface.Tool }
 
+// filledMsg carries the children of one command that had been named but not
+// read, for a surface too large to read whole.
+type filledMsg struct{ node *clisurface.Node }
+
 // failedMsg carries a reading that could not be done, which is what a name that
 // is not on PATH produces.
 type failedMsg struct{ err error }
@@ -91,6 +95,22 @@ func read(binary string, depth, width int) tea.Cmd {
 	}
 }
 
+// fill reads the children of one command that the first walk named but did not
+// read, so descending into it costs one read rather than the whole tree.
+func fill(binary string, path []string, depth, width int) tea.Cmd {
+	return func() tea.Msg {
+		node, err := clisurface.ExtractAt(binary, path, clisurface.Options{
+			WithBody: true,
+			MaxDepth: depth,
+			Runner:   clisurface.DisplayRunner(width),
+		})
+		if err != nil {
+			return failedMsg{err}
+		}
+		return filledMsg{node}
+	}
+}
+
 // Update folds one message into a new model.
 //
 // The signature returns tea.Model rather than Model because the runtime holds
@@ -117,6 +137,15 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.reading = false
 		m.nav = nav.New(msg.tool)
 		m.syncPreview()
+		return m, nil
+
+	case filledMsg:
+		m.reading = false
+		// Enter only after the children are attached, so the descent lands on a
+		// level with something to draw.
+		if m.nav.Fill(msg.node.Children) && m.nav.Enter() {
+			m.syncPreview()
+		}
 		return m, nil
 
 	case failedMsg:
@@ -167,6 +196,12 @@ func (m Model) key(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.syncPreview()
 
 	case "l", "right":
+		if m.nav.Pending() {
+			// Named but not read. Fetching happens in a command so the
+			// interface stays alive while it does.
+			m.reading = true
+			return m, fill(m.nav.Binary(), m.nav.Selected().Path, m.depth, m.previewWidth())
+		}
 		if m.nav.Enter() {
 			m.syncPreview()
 		}

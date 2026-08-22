@@ -114,6 +114,32 @@ func (n *Nav) Enter() bool {
 	return true
 }
 
+// Pending reports whether the selected command was named but not read, so
+// descending into it needs its children fetched first.
+//
+// A surface can be too large to read whole: aws is 438 services over 19,292
+// operations, and reading all of it costs twelve seconds to show one screen.
+// Reading one service costs 175ms, and only when someone opens it.
+func (n *Nav) Pending() bool {
+	sel := n.Selected()
+	return sel != nil && sel.Unread
+}
+
+// Fill gives the selected command the children that were read for it, and
+// reports whether it was waiting for them.
+//
+// The node is shared with the tree it came from, so filling it here is what
+// makes the second visit free.
+func (n *Nav) Fill(children []*clisurface.Node) bool {
+	sel := n.Selected()
+	if sel == nil || !sel.Unread {
+		return false
+	}
+	sel.Children = children
+	sel.Unread = false
+	return true
+}
+
 // Leave returns to the parent command and reports whether it moved. The cursor
 // there is where it was left, so going down and back up returns you to the row
 // you came from rather than to the top.

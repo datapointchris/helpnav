@@ -162,3 +162,68 @@ func TestCommandInsideAChildlessNodeIsThatNode(t *testing.T) {
 		t.Error("a tool with no commands moved")
 	}
 }
+
+// A surface too large to read whole names a command without reading it, so
+// descending has to fetch its children first. Entering before they arrive would
+// land on a level with nothing to draw.
+func TestAnUnreadCommandIsPendingUntilFilled(t *testing.T) {
+	tool := &clisurface.Tool{
+		Binary: "aws",
+		Root: &clisurface.Node{Name: "aws", Children: []*clisurface.Node{
+			{Name: "s3", Path: []string{"s3"}, Unread: true},
+		}},
+	}
+	n := New(tool)
+
+	if !n.Pending() {
+		t.Fatal("s3 was named but not read; it must report as pending")
+	}
+	if n.Enter() {
+		t.Error("entered a command with no children read")
+	}
+
+	filled := []*clisurface.Node{
+		{Name: "ls", Path: []string{"s3", "ls"}},
+		{Name: "cp", Path: []string{"s3", "cp"}},
+	}
+	if !n.Fill(filled) {
+		t.Fatal("Fill reported nothing was waiting")
+	}
+	if n.Pending() {
+		t.Error("still pending after being filled")
+	}
+	if !n.Enter() {
+		t.Fatal("could not enter after filling")
+	}
+	if got := len(n.Children()); got != 2 {
+		t.Errorf("inside s3 there are %d commands, want 2", got)
+	}
+	if got := strings.Join(n.Command(), " "); got != "aws s3 ls" {
+		t.Errorf("command = %q, want aws s3 ls", got)
+	}
+}
+
+// Filling a command that was already read would replace what a walk found with
+// whatever a second read returned.
+func TestFillingAnAlreadyReadCommandDoesNothing(t *testing.T) {
+	tool := &clisurface.Tool{
+		Binary: "demo",
+		Root: &clisurface.Node{Name: "demo", Children: []*clisurface.Node{
+			{Name: "one", Path: []string{"one"}, Children: []*clisurface.Node{
+				{Name: "kept", Path: []string{"one", "kept"}},
+			}},
+		}},
+	}
+	n := New(tool)
+
+	if n.Pending() {
+		t.Error("a command that was read reported as pending")
+	}
+	if n.Fill([]*clisurface.Node{{Name: "replaced"}}) {
+		t.Error("Fill claimed a read command was waiting")
+	}
+	n.Enter()
+	if got := n.Children()[0].Name; got != "kept" {
+		t.Errorf("child = %q, want kept — a second read overwrote the first", got)
+	}
+}
