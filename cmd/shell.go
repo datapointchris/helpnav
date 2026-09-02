@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/datapointchris/goselfupdate/cobracmd"
+	"github.com/datapointchris/goclikit"
 	"github.com/spf13/cobra"
 )
 
@@ -41,7 +41,7 @@ already uses.`,
 	Args:      cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if args[0] != "zsh" {
-			return cobracmd.UsageError(fmt.Errorf(
+			return goclikit.UsageError(fmt.Errorf(
 				"no widget block for %q; helpnav has one for %s",
 				args[0], strings.Join(widgetShells, ", ")))
 		}
