@@ -10,8 +10,8 @@ require (
 	github.com/charmbracelet/lipgloss v1.1.0
 	github.com/charmbracelet/x/ansi v0.11.8
 	github.com/datapointchris/clisurface v0.8.0
-	github.com/datapointchris/goclikit v0.1.0
-	github.com/datapointchris/goselfupdate v0.10.0
+	github.com/datapointchris/goclikit v0.1.1
+	github.com/datapointchris/goselfupdate v0.11.0
 	github.com/spf13/cobra v1.10.2
 )
 
