@@ -16,11 +16,11 @@ var zshWidgets string
 // alternatives both read it, so the two cannot disagree about what exists.
 var widgetShells = []string{"zsh"}
 
-var shellCmd = &cobra.Command{
+var shellCmd = goclikit.AsNamespace(&cobra.Command{
 	Use:     "shell",
 	GroupID: groupTool,
 	Short:   "The blocks your shell loads from helpnav",
-}
+})
 
 var widgetsCmd = &cobra.Command{
 	Use:   "widgets <shell>",

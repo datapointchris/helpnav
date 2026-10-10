@@ -61,8 +61,7 @@ func run() int {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	autoConfig := autoupdate.Config{Update: updateConfig()}
-	if err := goclikit.Execute(ctx, rootCmd, autoConfig); err != nil {
+	if err := execute(ctx, autoupdate.Config{Update: updateConfig()}); err != nil {
 		if !errors.Is(err, goclikit.ErrReported) {
 			fmt.Fprintln(os.Stderr, err)
 		}
@@ -74,6 +73,12 @@ func run() int {
 		return 1
 	}
 	return 0
+}
+
+// execute is run without the update check's config, so a test can take the
+// shipped path with the check suppressed.
+func execute(ctx context.Context, config autoupdate.Config) error {
+	return goclikit.Execute(ctx, rootCmd, config)
 }
 
 const groupTool = "tool"
