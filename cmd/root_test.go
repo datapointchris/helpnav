@@ -31,10 +31,12 @@ func runLine(t *testing.T, args ...string) error {
 // Each line names a word helpnav cannot act on, and is answered with that word
 // and exit 2 rather than with a screen or a flag.
 func TestAMistypedWordIsRefusedByName(t *testing.T) {
+	t.Setenv("PATH", t.TempDir())
 	for _, c := range []struct {
 		args []string
 		want string
 	}{
+		{[]string{"no-such-tool"}, `"no-such-tool" is not a command on PATH`},
 		{[]string{"shell", "bogus"}, `unknown command "bogus" for "helpnav shell"`},
 		{[]string{"shell", "bogus", "--json"}, `unknown command "bogus" for "helpnav shell"`},
 		{[]string{"shell", "bogus", "--help"}, `unknown command "bogus" for "helpnav shell"`},

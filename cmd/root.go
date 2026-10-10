@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"os/exec"
 	"os/signal"
 	"strings"
 	"syscall"
@@ -96,6 +97,13 @@ func init() {
 func browse(cmd *cobra.Command, binary string) error {
 	if _, listed := doNotRun(binary); listed {
 		return refuseToRun(binary)
+	}
+	// Before the browser opens, so a mistyped name is answered on the line it
+	// was typed on rather than after a screen that flashes and closes. A name
+	// that resolves to nothing is the caller's mistake, which exits 2; a tool
+	// that is there and prints no help is still clisurface's to report.
+	if _, err := exec.LookPath(binary); err != nil {
+		return goclikit.UsageError(fmt.Errorf("helpnav: %q is not a command on PATH, so there is no help to read", binary))
 	}
 	argv, err := tui.Run(binary, depthFlag)
 	if err != nil {
