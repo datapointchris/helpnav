@@ -19,12 +19,6 @@ func runLine(t *testing.T, args ...string) error {
 	original := os.Args
 	os.Args = append([]string{"helpnav"}, args...)
 	t.Cleanup(func() { os.Args = original })
-	// goclikit resolves the command from the root's last parsed arguments where
-	// it has any, ahead of os.Args, and rootCmd is one value for the whole test
-	// binary. Left alone, each line would resolve against the one before it.
-	if err := rootCmd.Flags().Parse(nil); err != nil {
-		t.Fatal(err)
-	}
 	return execute(context.Background(), autoupdate.Config{Suppress: true})
 }
 
