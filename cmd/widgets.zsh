@@ -20,7 +20,10 @@ helpnav-widget() {
   local chosen
   # </dev/tty because the widget's stdin is not guaranteed to be the terminal,
   # and a full-screen reader that cannot read keys hangs rather than failing.
-  chosen="$(helpnav "$tool" </dev/tty)"
+  # `--` because the word is always a tool. Without it a line starting with
+  # `update` would update helpnav, and one starting with `--help` would become
+  # helpnav's help.
+  chosen="$(helpnav -- "$tool" </dev/tty)"
   if [[ -n "$chosen" ]]; then
     BUFFER="$chosen"
     CURSOR=${#BUFFER}
@@ -32,6 +35,13 @@ zle -N helpnav-widget
 
 # Loads the next prompt instead, for when the line you are on is worth keeping.
 hn() {
+  # Everything helpnav prints is loaded, and with no tool to read it prints its
+  # own help. A bare call and a help flag are answered here instead, so no help
+  # text reaches the prompt.
+  if [[ $# -eq 0 || -n ${@[(r)(-h|--help)]} ]]; then
+    print -u2 -- "usage: hn [--depth N] <tool> — loads the command you stop on at the next prompt"
+    return
+  fi
   local chosen
   chosen="$(helpnav "$@" </dev/tty)"
   [[ -n "$chosen" ]] && print -z -- "$chosen"
