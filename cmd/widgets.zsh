@@ -42,7 +42,9 @@ hn() {
     print -u2 -- "usage: hn [--depth N] <tool> — loads the command you stop on at the next prompt"
     return
   fi
+  # The last word is the tool and goes after `--`, so `hn update` browses a
+  # tool called update rather than updating helpnav. Flags stay before it.
   local chosen
-  chosen="$(helpnav "$@" </dev/tty)"
+  chosen="$(helpnav "${@[1,-2]}" -- "${@[-1]}" </dev/tty)"
   [[ -n "$chosen" ]] && print -z -- "$chosen"
 }
