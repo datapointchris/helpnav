@@ -30,16 +30,19 @@ browser — move through the commands, read what each one does beside the list,
 and stop on the one you want. helpnav prints that command, so what you went
 looking for is what you come away with.
 
-The tool being read is not modified and nothing is installed into it. Only
---help is run, at each level, plus a framework's own completion callback where
-there is one. A bare subcommand is never run, because a noun that performs a
-read when invoked with no verb would perform it.
+The tool being read is not modified and nothing is installed into it. helpnav
+asks for --help at each level, plus a framework's own completion callback where
+there is one. A tool whose help no reader can parse is read from a recipe
+naming a fixed entry point instead, such as ` + "`git help -a`" + ` or
+` + "`tmux list-commands`" + `. A bare subcommand is never run, because a noun that
+performs a read when invoked with no verb would perform it.
 
 That bounds what helpnav asks for, not what a tool does when asked. Answering
 --help means starting the program, so whatever it does before printing happens
 too. A tool that opens a window rather than printing is named in
 ` + "`helpnav do-not-run`" + ` and is never started.`,
-	Example: `  helpnav docker      a large tree, read one level at a time
+	Example: `  helpnav docker      a large tree, read whole before you walk it
+  helpnav aws         too large to read up front, so read one level at a time
   helpnav uv          a Rust tool; the reader does not care which language
   helpnav helpnav     this tool, read by itself`,
 	Args:          cobra.MaximumNArgs(1),

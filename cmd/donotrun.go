@@ -41,19 +41,19 @@ output: one tool per line, a reason after the name, and ` + "`#`" + ` for a comm
 func init() { rootCmd.AddCommand(doNotRunCmd) }
 
 // Reading a tool means starting it, and a few programs answer `--help` by
-// launching instead of printing. Measured across the 176 CLIs this machine
-// declares: bitwarden took 1291ms and claude-desktop 20036ms, both showing no
-// commands for it, against a median of 6ms and a slowest legitimate flat read
-// of 380ms. Nothing sits in that gap.
+// launching instead of printing. Measured across a large set of installed CLIs:
+// bitwarden took 1291ms and claude-desktop 20036ms, both showing no commands
+// for it, against a median of 6ms and a slowest legitimate flat read of 380ms.
+// Nothing sits in that gap.
 //
 // The list is written by hand rather than learned. A threshold would have to
 // run the tool once to find out, which is the cost it exists to avoid, and a
 // person already knows a desktop app is not a CLI before it wastes twenty
 // seconds.
 //
-// A desktop entry is not the test. Twelve of the 176 have one, and ten of them
-// — htop, btop, mpv, kitty, ghostty, aerc, sioyek, rofi, vivaldi, zen-browser —
-// print help correctly in under 100ms.
+// A desktop entry is not the test. Plenty of tools that ship one print help
+// correctly in under 100ms: htop, btop, mpv, kitty, ghostty, aerc, sioyek,
+// rofi, vivaldi and zen-browser among them.
 var builtinDoNotRun = map[string]string{
 	"bitwarden":      "the desktop app; it ignores --help and opens a window",
 	"claude-desktop": "an Electron app; it ignores --help and opens a window",

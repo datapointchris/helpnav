@@ -6,7 +6,9 @@ reads comes from `clisurface`; this repo is the interaction model over it.
 ## Constraints that must not regress
 
 - **The tool being read is never modified and never invoked bare.** Only
-  `--help`, at each level, plus a framework's own completion callback. This is
+  `--help`, at each level, plus a framework's own completion callback. A tool
+  no reader reaches is asked only what its `clisurface` recipe names, a fixed
+  entry point such as `git help -a` or `tmux list-commands`. This is
   `clisurface`'s invariant and helpnav must not add a path around it — no
   running a subcommand to see what it does, no writing into the tool's config to
   learn its shape. A noun that performs a read when invoked with no verb would
