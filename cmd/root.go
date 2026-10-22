@@ -79,8 +79,8 @@ func run() int {
 	return 0
 }
 
-// execute is run without the update check's config, so a test can take the
-// shipped path with the check suppressed.
+// execute takes the update check's config as an argument, so a test can run
+// the shipped path with the check suppressed.
 func execute(ctx context.Context, config autoupdate.Config) error {
 	return goclikit.Execute(ctx, rootCmd, config)
 }
@@ -101,10 +101,10 @@ func browse(cmd *cobra.Command, binary string) error {
 	if _, listed := doNotRun(binary); listed {
 		return refuseToRun(binary)
 	}
-	// Before the browser opens, so a mistyped name is answered on the line it
-	// was typed on rather than after a screen that flashes and closes. A name
-	// that resolves to nothing is the caller's mistake, which exits 2; a tool
-	// that is there and prints no help is still clisurface's to report.
+	// LookPath runs before the browser opens, so a mistyped name is answered on
+	// the line it was typed on rather than after a screen that flashes and
+	// closes. A name that resolves to nothing is the caller's mistake and exits
+	// 2. A tool that is there and prints no help is still clisurface's to report.
 	if _, err := exec.LookPath(binary); err != nil {
 		return goclikit.UsageError(fmt.Errorf("helpnav: %q is not a command on PATH, so there is no help to read", binary))
 	}
