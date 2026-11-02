@@ -1,3 +1,3 @@
-# No release here writes CHANGELOG.md. If one ever arrives generated, linting
-# it would be undone by the next release and return as a conflict.
+# No release here writes CHANGELOG.md. If one arrives generated, markdownlint
+# --fix rewrites it, the next release rewrites it back, and the two conflict.
 CHANGELOG.md

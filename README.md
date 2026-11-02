@@ -144,8 +144,8 @@ learn that, which is the cost the list exists to avoid.
 Each command in the tree costs one start of the tool. helpnav reads sibling
 commands concurrently, as many at once as the machine has CPUs. A compiled tool
 starts in milliseconds, so its whole tree arrives quickly. A Python tool takes
-about a fifth of a second to start, so a large one is felt. The screen says
-`reading <tool>…` until the tree arrives. `q` works throughout.
+about a fifth of a second to start, so a large one takes seconds to arrive. The
+screen says `reading <tool>…` until the tree arrives. `q` works throughout.
 
 A surface too large to read up front is read one level at a time. aws is read
 this way: a service's operations are read the first time you step into it.

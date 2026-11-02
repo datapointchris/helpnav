@@ -35,9 +35,9 @@ zle -N helpnav-widget
 
 # Loads the next prompt instead, for when the line you are on is worth keeping.
 hn() {
-  # Everything helpnav prints is loaded, and with no tool to read it prints its
-  # own help. A bare call and a help flag are answered here instead, so no help
-  # text reaches the prompt.
+  # `print -z` loads whatever helpnav prints onto the next prompt, and helpnav
+  # with no tool prints its own help. A bare call and a help flag are answered
+  # here instead, so no help text lands on the prompt.
   if [[ $# -eq 0 || -n ${@[(r)(-h|--help)]} ]]; then
     print -u2 -- "usage: hn [--depth N] <tool> — loads the command you stop on at the next prompt"
     return
