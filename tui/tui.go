@@ -7,9 +7,11 @@
 package tui
 
 import (
+	"fmt"
 	"os"
 	"strings"
 
+	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -28,6 +30,19 @@ const (
 	previewShare = 4
 	totalShare   = parentShare + currentShare + previewShare
 )
+
+// browseKeys is the table ? shows.
+var browseKeys = []struct{ keys, does string }{
+	{"j k, down up", "move through the commands"},
+	{"l h, right left", "into a command, back out"},
+	{"g G, home end", "first, last"},
+	{"ctrl+d ctrl+u, pgdn pgup", "scroll the help half a screen"},
+	{"f b", "scroll the help a page"},
+	{"J K", "scroll the help a line"},
+	{"enter", "take this one and quit"},
+	{"q esc", "leave with nothing"},
+	{"?", "show these keys"},
+}
 
 // surfaceMsg carries a finished reading back into the loop.
 type surfaceMsg struct{ tool *clisurface.Tool }
@@ -59,6 +74,8 @@ type Model struct {
 	height  int
 	sized   bool
 	reading bool
+
+	keysOpen bool
 
 	// chosen records that the reader stopped on a command rather than walking
 	// away, which is the difference between printing argv and printing nothing.
@@ -162,9 +179,21 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 // key handles one keypress. Split out of Update so the message dispatch stays
 // one screen and the bindings read as a list.
 func (m Model) key(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
-	switch msg.String() {
-	case "ctrl+c", "q", "esc":
+	if msg.String() == "ctrl+c" {
 		return m, tea.Quit
+	}
+	// Any key closes the table, so esc backs out of it and leaves the browser
+	// open.
+	if m.keysOpen {
+		m.keysOpen = false
+		return m, nil
+	}
+	switch msg.String() {
+	case "q", "esc":
+		return m, tea.Quit
+	case "?":
+		m.keysOpen = true
+		return m, nil
 	}
 	// Every other key needs a tree. While the tool is still being read, quitting
 	// is the only thing that can mean anything.
@@ -211,6 +240,12 @@ func (m Model) key(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.syncPreview()
 		}
 
+	case "J":
+		m.preview.ScrollDown(1)
+
+	case "K":
+		m.preview.ScrollUp(1)
+
 	default:
 		// Anything else is the preview's: page keys, half-page scrolls.
 		var cmd tea.Cmd
@@ -235,6 +270,19 @@ func (m Model) Err() error { return m.err }
 // to the gap above it.
 func (m *Model) layout() {
 	m.preview = viewport.New(m.previewWidth(), m.bodyHeight())
+	m.preview.KeyMap = previewKeys()
+}
+
+// previewKeys narrows the viewport's defaults, leaving d, u and space unbound.
+// Those letters read, undo and toggle in other terminal programs, and nothing
+// here does any of the three.
+func previewKeys() viewport.KeyMap {
+	keys := viewport.DefaultKeyMap()
+	keys.PageDown = key.NewBinding(key.WithKeys("f"))
+	keys.PageUp = key.NewBinding(key.WithKeys("b"))
+	keys.HalfPageDown = key.NewBinding(key.WithKeys("ctrl+d", "pgdown"))
+	keys.HalfPageUp = key.NewBinding(key.WithKeys("ctrl+u", "pgup"))
+	return keys
 }
 
 func (m Model) bodyHeight() int {
@@ -273,6 +321,8 @@ func (m Model) View() string {
 		return ""
 	case !m.sized:
 		return ""
+	case m.keysOpen:
+		return keysScreen()
 	case m.nav == nil:
 		return hintStyle.Render("reading " + m.binary + "…")
 	}
@@ -291,10 +341,19 @@ func (m Model) View() string {
 // footer shows the command the reader would leave with, which is the answer the
 // browser exists to produce.
 func (m Model) footer() string {
-	keys := "  j/k move · l/h in/out · enter take · q quit"
+	keys := "  j/k move · l/h in/out · enter take · ? keys · q quit"
 	room := max(m.width-lipgloss.Width(keys), 0)
 	cmd := strings.Join(m.nav.Command(), " ")
 	return commandStyle.Render(ansi.Truncate(cmd, room, "…")) + hintStyle.Render(keys)
+}
+
+func keysScreen() string {
+	rows := make([]string, 0, len(browseKeys)+2)
+	for _, row := range browseKeys {
+		rows = append(rows, commandStyle.Render(fmt.Sprintf(" %-26s", row.keys))+rowStyle.Render(row.does))
+	}
+	rows = append(rows, "", hintStyle.Render(" any key closes this"))
+	return strings.Join(rows, "\n")
 }
 
 func names(nodes []*clisurface.Node) []string {

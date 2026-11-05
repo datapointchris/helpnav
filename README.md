@@ -74,11 +74,13 @@ row under the cursor. The footer carries the command as it assembles.
 | `j` `k` | move through the commands |
 | `l` `h` | into a command, back out |
 | `g` `G` | first, last |
-| `f` `b`, `d` `u` | scroll the help pane a page, half a page |
+| `ctrl+d` `ctrl+u`, `f` `b`, `J` `K` | scroll the help pane half a screen, a page, a line |
 | `enter` | take this one and quit |
 | `q` `esc` | leave with nothing |
+| `?` | show these keys, which any key closes |
 
-The arrow keys, Home and End do what their letters do.
+The arrow keys, Home and End do what their letters do, and PgDn and PgUp do what `ctrl+d` and
+`ctrl+u` do.
 
 `enter` always takes the row under the cursor. `l` only ever descends. It
 refuses a command with nothing below it. Neither key has to guess which one you
