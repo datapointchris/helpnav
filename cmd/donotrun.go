@@ -23,6 +23,7 @@ waiting twenty seconds for one.
 
 The list is written by hand. Add to it in the file named at the end of the
 output: one tool per line, a reason after the name, and ` + "`#`" + ` for a comment.`,
+	Example:       `  helpnav do-not-run      see which tools are refused, why, and the file to edit`,
 	Args:          cobra.NoArgs,
 	SilenceErrors: true,
 	SilenceUsage:  true,

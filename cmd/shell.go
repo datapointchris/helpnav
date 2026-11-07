@@ -20,6 +20,8 @@ var shellCmd = goclikit.AsNamespace(&cobra.Command{
 	Use:     "shell",
 	GroupID: groupTool,
 	Short:   "The blocks your shell loads from helpnav",
+	Example: `  eval "$(helpnav shell widgets zsh)"          load the zsh widget for this shell
+  helpnav shell widgets zsh                    read the block before loading it`,
 })
 
 var widgetsCmd = &cobra.Command{
