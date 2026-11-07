@@ -43,7 +43,7 @@ func resolveVersion(ldflagsVersion, moduleVersion string) string {
 var versionCmd = &cobra.Command{
 	Use:     "version",
 	GroupID: groupTool,
-	Short:   "Print helpnav version information",
+	Short:   "Print the release, commit and build date of this binary",
 	Example: `  helpnav version      the release, commit and build date of this binary`,
 	Args:    cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, _ []string) error {
