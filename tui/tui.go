@@ -98,11 +98,7 @@ func (m Model) Init() tea.Cmd { return nil }
 // instead of freezing it.
 func read(binary string, depth, width int) tea.Cmd {
 	return func() tea.Msg {
-		tool, err := clisurface.Extract(binary, clisurface.Options{
-			WithBody: true,
-			MaxDepth: depth,
-			Runner:   clisurface.DisplayRunner(width),
-		})
+		tool, err := clisurface.Extract(binary, readOptions(depth, clisurface.DisplayRunner(width)))
 		if err != nil {
 			return failedMsg{err}
 		}
@@ -110,15 +106,23 @@ func read(binary string, depth, width int) tea.Cmd {
 	}
 }
 
+// readOptions is how every read of a tool is asked for, so the browser, a step
+// into an unread command and [Tree] differ only in the runner.
+func readOptions(depth int, runner clisurface.Runner) clisurface.Options {
+	return clisurface.Options{WithBody: true, MaxDepth: depth, Runner: runner}
+}
+
+// Tree reads binary as the browser does, but under clisurface's default runner,
+// which asks for help without color and wraps it wide, for a program to read.
+func Tree(binary string, depth int) (*clisurface.Tool, error) {
+	return clisurface.Extract(binary, readOptions(depth, nil))
+}
+
 // fill reads the children of one command that the first walk named but did not
 // read, so descending into it costs one read rather than the whole tree.
 func fill(binary string, path []string, depth, width int) tea.Cmd {
 	return func() tea.Msg {
-		node, err := clisurface.ExtractAt(binary, path, clisurface.Options{
-			WithBody: true,
-			MaxDepth: depth,
-			Runner:   clisurface.DisplayRunner(width),
-		})
+		node, err := clisurface.ExtractAt(binary, path, readOptions(depth, clisurface.DisplayRunner(width)))
 		if err != nil {
 			return failedMsg{err}
 		}

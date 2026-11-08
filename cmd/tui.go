@@ -133,15 +133,15 @@ func envSize(name string, fallback int) int {
 	return fallback
 }
 
-// printTree reads the tool as the browser does, but with clisurface's default
-// runner, which asks for help without color and wraps it wide.
+// printTree prints the command tree the browser opens on, as --json.
 func printTree(out io.Writer, binary string) error {
-	tool, err := clisurface.Extract(binary, clisurface.Options{WithBody: true, MaxDepth: depthFlag})
+	tool, err := tui.Tree(binary, depthFlag)
 	if err != nil {
 		return err
 	}
 	encoder := json.NewEncoder(out)
-	// Help text is full of <placeholders>, which the default escapes as <.
+	// Help text is full of <placeholders>, and the encoder would otherwise write
+	// each angle bracket as an HTML-safe unicode escape.
 	encoder.SetEscapeHTML(false)
 	encoder.SetIndent("", "  ")
 	return encoder.Encode(newCommandTree(tool, time.Now().UTC()))
