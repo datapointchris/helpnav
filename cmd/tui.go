@@ -26,6 +26,10 @@ var (
 	jsonFlag  bool
 )
 
+// errNoTerminal refuses a browser nobody could drive, rather than waiting on a
+// keyboard nobody holds.
+var errNoTerminal = errors.New("helpnav tui needs a terminal; --once prints one frame and --json the command tree")
+
 // The frame --once draws where COLUMNS or LINES is unset.
 const (
 	onceFallbackWidth  = 120
@@ -97,7 +101,7 @@ func runTUI(out io.Writer, binary string) error {
 	// The screen reads keys from stdin and draws on stderr, so those two are the
 	// terminal it needs. Stdout is left free to be the pipe carrying the command.
 	if !term.IsTerminal(os.Stdin.Fd()) || !term.IsTerminal(os.Stderr.Fd()) {
-		return goclikit.UsageError(errors.New("helpnav tui needs a terminal; --once prints one frame and --json the command tree"))
+		return goclikit.UsageError(errNoTerminal)
 	}
 	argv, err := tui.Run(binary, depthFlag)
 	if err != nil {

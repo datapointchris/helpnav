@@ -2,9 +2,8 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "urn:helpnav:tui-command-tree:v1",
   "title": "tui-command-tree",
-  "description": "`helpnav tui <tool> --json`: the command tree the browser opens on, each command with the help it printed. A command too deep to read up front is listed with `unread` set and no children.",
+  "description": "`helpnav tui <tool> --json`: the command tree the browser opens on, each command with the help it printed. A field added keeps schema_version, so a reader ignores a field it does not know.",
   "type": "object",
-  "additionalProperties": false,
   "required": ["schema_version", "binary", "framework", "read_at", "root"],
   "properties": {
     "schema_version": {
@@ -18,7 +17,7 @@
     },
     "framework": {
       "type": "string",
-      "description": "Which shape of help the tree was read from, such as cobra, rich, heading, argparse or section."
+      "description": "The help format the tree was read from, as clisurface's Framework names it."
     },
     "read_at": {
       "type": "string",
@@ -33,7 +32,6 @@
   "$defs": {
     "command": {
       "type": "object",
-      "additionalProperties": false,
       "required": ["name", "path", "argv", "short", "usage", "flags", "help", "unread", "children"],
       "properties": {
         "name": {
@@ -70,7 +68,7 @@
         },
         "unread": {
           "type": "boolean",
-          "description": "The command was named but not read, because the tree was too large to read whole. Its children are missing rather than absent, and the browser reads them on the first step into it."
+          "description": "The command was named but not read, so its help is empty and its children is empty whether or not it has any. The browser reads it on the first step into it."
         },
         "children": {
           "type": "array",
