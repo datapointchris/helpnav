@@ -194,7 +194,7 @@ func newCommandTree(tool *clisurface.Tool, readAt time.Time) commandTree {
 func newCommandShown(binary string, node *clisurface.Node) commandShown {
 	argv := append([]string{binary}, node.Path...)
 	shown := commandShown{
-		// The root's name is the binary, which clisurface leaves blank.
+		// The last word of argv, so the root's is the binary however it was read.
 		Name:     argv[len(argv)-1],
 		Path:     append([]string{}, node.Path...),
 		Argv:     argv,

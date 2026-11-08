@@ -21,7 +21,7 @@ helpnav-widget() {
   # </dev/tty because the widget's stdin is not guaranteed to be the terminal,
   # and a full-screen reader that cannot read keys hangs rather than failing.
   # `--` because the word is always a tool. Without it a line starting with
-  # `--help` would become helpnav's help.
+  # `--help` would be replaced by `helpnav tui`'s help.
   chosen="$(helpnav tui -- "$tool" </dev/tty)"
   if [[ -n "$chosen" ]]; then
     BUFFER="$chosen"
