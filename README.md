@@ -27,7 +27,7 @@ release's published checksums.
 At a terminal, helpnav asks GitHub for a newer release at most once a day. When
 one exists, it prints a single line on stderr naming it. It installs nothing on
 its own. The check is skipped unless stdout and stderr are both terminals, so
-`$(helpnav docker)` never makes it. Set `HELPNAV_NO_AUTO_UPDATE` to any value
+`$(helpnav tui docker)` never makes it. Set `HELPNAV_NO_AUTO_UPDATE` to any value
 to turn it off.
 
 ## Starting from scratch
@@ -52,18 +52,18 @@ names the file to edit.
 `hn helpnav` is the proof. The screen opens on helpnav's own commands. Stop on
 one, press `enter`, and that command waits at the next prompt, ready to edit.
 
-The widget block exists for zsh alone. In any other shell, `helpnav <tool>`
+The widget block exists for zsh alone. In any other shell, `helpnav tui <tool>`
 prints the chosen command on stdout for the shell to take from there.
 
 A name that is not on `PATH` exits 2 before the screen opens. A typo is
 answered on the line it was typed on, not after a screen that flashes and
 closes.
 
-## `helpnav <tool>` — the help tree in three columns, ending in a command
+## `helpnav tui <tool>` — the help tree in three columns, ending in a command
 
 ```bash
-helpnav docker         # read docker's help, then walk it
-CMD=$(helpnav docker)  # the screen draws on stderr; the chosen command goes to stdout
+helpnav tui docker         # read docker's help, then walk it
+CMD=$(helpnav tui docker)  # the screen draws on stderr; the chosen command goes to stdout
 ```
 
 The three columns are where you came from, what is here, and the help for the
@@ -99,6 +99,28 @@ string, never a command nobody chose.
 
 Stepping back out with `h` returns the cursor to the row you left, not to the
 top of the list.
+
+## `--once` and `--json` — what the browser opens on, printed for a program
+
+```bash
+COLUMNS=160 LINES=50 helpnav tui uv --once > frame.txt  # the first screen, as text
+helpnav tui uv --json | jq '.root.children[].argv | join(" ")'
+```
+
+`--once` draws the screen the browser opens on at `COLUMNS` by `LINES`, then
+exits. Where those are unset it takes the terminal's size, and a file or a pipe
+gets 120 by 40. A frame written to a file or a pipe carries no color.
+
+`--json` prints the command tree the browser opens on. Each command carries its
+name, its path, the argv `enter` would print, and the help it printed.
+`children_complete` is false where the read stopped above a command's children,
+as it does at `--depth`, so an empty list there is not a leaf.
+[`cmd/tui-command-tree.schema.json`](cmd/tui-command-tree.schema.json) holds the
+shape. The help in it is plain text, wrapped wide rather than at the screen's
+width.
+
+With no terminal and neither flag, `helpnav tui` exits 2 and names both, rather
+than waiting on a keyboard nobody holds.
 
 ## `shell widgets zsh` — the chosen command lands on the line you were typing
 

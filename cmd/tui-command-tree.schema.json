@@ -1,0 +1,85 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:helpnav:tui-command-tree:v1",
+  "title": "tui-command-tree",
+  "description": "`helpnav tui <tool> --json`: the command tree the browser opens on, each command with the help it printed. A field added keeps schema_version, so a reader ignores a field it does not know.",
+  "type": "object",
+  "required": ["schema_version", "binary", "framework", "read_at", "root"],
+  "properties": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "The version of this document's shape. A field added keeps it, and a field reshaped or removed raises it."
+    },
+    "binary": {
+      "type": "string",
+      "description": "The tool that was read, as it was named on the command line."
+    },
+    "framework": {
+      "type": "string",
+      "description": "The help format the tree was read from, as clisurface's Framework names it."
+    },
+    "read_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When the tool was read, in UTC."
+    },
+    "root": {
+      "$ref": "#/$defs/command",
+      "description": "The tool itself, whose name is the binary and whose path is empty."
+    }
+  },
+  "$defs": {
+    "command": {
+      "type": "object",
+      "required": ["name", "path", "argv", "short", "usage", "flags", "help", "unread", "children", "children_complete"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "The command's own word, the last of its argv."
+        },
+        "path": {
+          "type": "array",
+          "items": {"type": "string"},
+          "description": "The words after the binary that reach this command."
+        },
+        "argv": {
+          "type": "array",
+          "items": {"type": "string"},
+          "minItems": 1,
+          "description": "The binary, then the path: what the browser prints when enter takes this command."
+        },
+        "short": {
+          "type": "string",
+          "description": "The one-line description the parent's help gave this command. Empty for the root."
+        },
+        "usage": {
+          "type": "string",
+          "description": "The usage line parsed out of this command's help, or empty where it printed none."
+        },
+        "flags": {
+          "type": "array",
+          "items": {"type": "string"},
+          "description": "Each long flag the help names, once, in the order it first appears."
+        },
+        "help": {
+          "type": "string",
+          "description": "Everything the command printed for --help, without color. Empty for a command that was not read."
+        },
+        "unread": {
+          "type": "boolean",
+          "description": "The command was named but not read, so its help and children are empty and children_complete is false. The browser reads it on the first step into it."
+        },
+        "children": {
+          "type": "array",
+          "items": {"$ref": "#/$defs/command"},
+          "description": "The commands below this one, in the order the tool lists them. A complete list only where children_complete is true."
+        },
+        "children_complete": {
+          "type": "boolean",
+          "description": "children lists every command below this one. False where the read stopped above them: a command that was not read, or one at the --depth bound or a tool's own read depth, which a leaf there shares."
+        }
+      }
+    }
+  }
+}

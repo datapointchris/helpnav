@@ -98,11 +98,7 @@ func (m Model) Init() tea.Cmd { return nil }
 // instead of freezing it.
 func read(binary string, depth, width int) tea.Cmd {
 	return func() tea.Msg {
-		tool, err := clisurface.Extract(binary, clisurface.Options{
-			WithBody: true,
-			MaxDepth: depth,
-			Runner:   clisurface.DisplayRunner(width),
-		})
+		tool, err := clisurface.Extract(binary, readOptions(depth, clisurface.DisplayRunner(width)))
 		if err != nil {
 			return failedMsg{err}
 		}
@@ -110,15 +106,23 @@ func read(binary string, depth, width int) tea.Cmd {
 	}
 }
 
+// readOptions is how every read of a tool is asked for, so the browser, a step
+// into an unread command and [Tree] differ only in the runner.
+func readOptions(depth int, runner clisurface.Runner) clisurface.Options {
+	return clisurface.Options{WithBody: true, MaxDepth: depth, Runner: runner}
+}
+
+// Tree reads binary as the browser does, but under clisurface's default runner,
+// which asks for help without color and wraps it wide, for a program to read.
+func Tree(binary string, depth int) (*clisurface.Tool, error) {
+	return clisurface.Extract(binary, readOptions(depth, nil))
+}
+
 // fill reads the children of one command that the first walk named but did not
 // read, so descending into it costs one read rather than the whole tree.
 func fill(binary string, path []string, depth, width int) tea.Cmd {
 	return func() tea.Msg {
-		node, err := clisurface.ExtractAt(binary, path, clisurface.Options{
-			WithBody: true,
-			MaxDepth: depth,
-			Runner:   clisurface.DisplayRunner(width),
-		})
+		node, err := clisurface.ExtractAt(binary, path, readOptions(depth, clisurface.DisplayRunner(width)))
 		if err != nil {
 			return failedMsg{err}
 		}
@@ -427,6 +431,10 @@ func column(rows []string, cursor, width, height int, active bool) string {
 			default:
 				b.WriteString(rowStyle.Width(width).Render(text))
 			}
+		} else {
+			// A column with nothing to list still holds its width, as the parent
+			// column does at the tool's top level, so the others keep their place.
+			b.WriteString(strings.Repeat(" ", width))
 		}
 		if i < height-1 {
 			b.WriteByte('\n')
@@ -438,7 +446,7 @@ func column(rows []string, cursor, width, height int, active bool) string {
 // Run opens the browser and returns the command the reader stopped on.
 //
 // The interface is drawn on stderr so stdout carries only the answer. That is
-// what lets `$(helpnav docker)` work: the browser paints on the terminal while
+// what lets `$(helpnav tui docker)` work: the browser paints on the terminal while
 // the chosen command goes down the pipe.
 func Run(binary string, depth int) ([]string, error) {
 	program := tea.NewProgram(
@@ -458,4 +466,22 @@ func Run(binary string, depth int) ([]string, error) {
 		return nil, model.Err()
 	}
 	return model.Command(), nil
+}
+
+// Once reads binary and draws the screen the browser opens on, at width by
+// height, through the same messages the runtime would send it.
+func Once(binary string, depth, width, height int) (string, error) {
+	var model tea.Model = New(binary, depth)
+	model, read := model.Update(tea.WindowSizeMsg{Width: width, Height: height})
+	if read != nil {
+		model, _ = model.Update(read())
+	}
+	opened, ok := model.(Model)
+	if !ok {
+		return "", nil
+	}
+	if opened.Err() != nil {
+		return "", opened.Err()
+	}
+	return opened.View(), nil
 }

@@ -13,12 +13,16 @@ import (
 
 // runLine drives the command line through execute, the path main takes, with
 // the update check suppressed. goclikit resolves the command from os.Args, so
-// the line goes there rather than through SetArgs.
+// the line goes there rather than through SetArgs. Cobra keeps a flag's value
+// from one run to the next, so tui's are put back after each.
 func runLine(t *testing.T, args ...string) error {
 	t.Helper()
 	original := os.Args
 	os.Args = append([]string{"helpnav"}, args...)
-	t.Cleanup(func() { os.Args = original })
+	t.Cleanup(func() {
+		os.Args = original
+		depthFlag, onceFlag, jsonFlag = 0, false, false
+	})
 	return execute(context.Background(), autoupdate.Config{Suppress: true})
 }
 
@@ -30,7 +34,7 @@ func TestAMistypedWordIsRefusedByName(t *testing.T) {
 		args []string
 		want string
 	}{
-		{[]string{"no-such-tool"}, `"no-such-tool" is not a command on PATH`},
+		{[]string{"tui", "no-such-tool"}, `"no-such-tool" is not a command on PATH`},
 		{[]string{"shell", "bogus"}, `unknown command "bogus" for "helpnav shell"`},
 		{[]string{"shell", "bogus", "--json"}, `unknown command "bogus" for "helpnav shell"`},
 		{[]string{"shell", "bogus", "--help"}, `unknown command "bogus" for "helpnav shell"`},
