@@ -48,11 +48,13 @@ one under the cursor. enter prints that command on stdout and exits, and q exits
 printing nothing. The screen draws on stderr, so ` + "`$(helpnav tui docker)`" + `
 holds only the command. ? lists every key.
 
---once prints the screen the browser opens on, at COLUMNS by LINES. --json prints
-the command tree it opens on, each command with its help, so a program reads what
-a person reads. Its help is plain text wrapped wide rather than at the screen's
-width. cmd/tui-command-tree.schema.json in helpnav's repository holds the shape
---json prints. With no terminal and neither flag, helpnav tui refuses.`,
+--once prints the screen the browser opens on, at COLUMNS by LINES, else at the
+terminal's size, else at 120 by 40. --json prints the command tree it opens on,
+each command with its help, so a program reads what a person reads. Its help is
+plain text wrapped wide rather than at the screen's width. A command's
+children_complete is false where the read stopped above its children.
+cmd/tui-command-tree.schema.json in helpnav's repository holds the shape --json
+prints. With no terminal and neither flag, helpnav tui refuses.`,
 	Example: `  helpnav tui docker            a large tree, read whole before you walk it
   helpnav tui aws               too large to read up front, so read one level at a time
   helpnav tui uv                a Rust tool; the reader does not care which language
@@ -169,6 +171,9 @@ type commandShown struct {
 	Help     string         `json:"help"`
 	Unread   bool           `json:"unread"`
 	Children []commandShown `json:"children"`
+	// ChildrenComplete is false where the read stopped above whatever this
+	// command holds, so an empty Children there says nothing about a leaf.
+	ChildrenComplete bool `json:"children_complete"`
 }
 
 func newCommandTree(tool *clisurface.Tool, readAt time.Time) commandTree {
@@ -198,6 +203,9 @@ func newCommandShown(binary string, node *clisurface.Node) commandShown {
 		Help:     node.Body,
 		Unread:   node.Unread,
 		Children: make([]commandShown, 0, len(node.Children)),
+		// A command named but not read, or one the walk stopped at under
+		// --depth or a recipe's own depth, has children nobody looked for.
+		ChildrenComplete: !node.Unread && !node.Bounded,
 	}
 	for _, child := range node.Children {
 		shown.Children = append(shown.Children, newCommandShown(binary, child))

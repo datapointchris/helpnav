@@ -32,7 +32,7 @@
   "$defs": {
     "command": {
       "type": "object",
-      "required": ["name", "path", "argv", "short", "usage", "flags", "help", "unread", "children"],
+      "required": ["name", "path", "argv", "short", "usage", "flags", "help", "unread", "children", "children_complete"],
       "properties": {
         "name": {
           "type": "string",
@@ -68,12 +68,16 @@
         },
         "unread": {
           "type": "boolean",
-          "description": "The command was named but not read, so its help is empty and its children is empty whether or not it has any. The browser reads it on the first step into it."
+          "description": "The command was named but not read, so its help and children are empty and children_complete is false. The browser reads it on the first step into it."
         },
         "children": {
           "type": "array",
           "items": {"$ref": "#/$defs/command"},
-          "description": "The commands below this one, in the order the tool lists them."
+          "description": "The commands below this one, in the order the tool lists them. A complete list only where children_complete is true."
+        },
+        "children_complete": {
+          "type": "boolean",
+          "description": "children lists every command below this one. False where the read stopped above them: a command that was not read, or one at the --depth bound or a tool's own read depth, which a leaf there shares."
         }
       }
     }

@@ -108,10 +108,13 @@ helpnav tui uv --json | jq '.root.children[].argv | join(" ")'
 ```
 
 `--once` draws the screen the browser opens on at `COLUMNS` by `LINES`, then
-exits. A frame written to a file or a pipe carries no color.
+exits. Where those are unset it takes the terminal's size, and a file or a pipe
+gets 120 by 40. A frame written to a file or a pipe carries no color.
 
 `--json` prints the command tree the browser opens on. Each command carries its
 name, its path, the argv `enter` would print, and the help it printed.
+`children_complete` is false where the read stopped above a command's children,
+as it does at `--depth`, so an empty list there is not a leaf.
 [`cmd/tui-command-tree.schema.json`](cmd/tui-command-tree.schema.json) holds the
 shape. The help in it is plain text, wrapped wide rather than at the screen's
 width.

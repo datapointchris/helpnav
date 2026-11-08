@@ -52,16 +52,17 @@ func TestTuiWithNoTerminalAndNeitherFlagRefuses(t *testing.T) {
 	}
 }
 
-// What helpnav tui demo --json writes holds to the schema its --help points a
-// reader at. The schema leaves room for an added field, so the test closes
-// both objects: a field the code adds without the schema fails here.
-func TestTuiJSONOfAToolOnPathHoldsToItsSchema(t *testing.T) {
+// What helpnav tui --depth 1 demo --json writes holds to the schema its --help
+// points a reader at, and says the read stopped at demo remote rather than
+// passing it off as a leaf. The schema leaves room for an added field, so the
+// test closes both objects: a field the code adds without the schema fails here.
+func TestTuiJSONAtADepthBoundHoldsToItsSchemaAndSaysWhereItStopped(t *testing.T) {
 	demoOnPath(t)
 	var out bytes.Buffer
 	rootCmd.SetOut(&out)
 	t.Cleanup(func() { rootCmd.SetOut(nil) })
 
-	if err := runLine(t, "tui", "demo", "--json"); err != nil {
+	if err := runLine(t, "tui", "--depth", "1", "demo", "--json"); err != nil {
 		t.Fatal(err)
 	}
 	instance, err := jsonschema.UnmarshalJSON(bytes.NewReader(out.Bytes()))
@@ -75,8 +76,9 @@ func TestTuiJSONOfAToolOnPathHoldsToItsSchema(t *testing.T) {
 	if err := json.Unmarshal(out.Bytes(), &tree); err != nil {
 		t.Fatal(err)
 	}
-	if child(child(&tree.Root, "remote"), "add") == nil {
-		t.Errorf("the tree does not reach demo remote add:\n%s", out.String())
+	remote := child(&tree.Root, "remote")
+	if remote == nil || !tree.Root.ChildrenComplete || remote.ChildrenComplete {
+		t.Errorf("want demo's children complete and demo remote's not:\n%s", out.String())
 	}
 }
 
