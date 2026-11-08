@@ -82,7 +82,7 @@ stays closed as you move. A help with no headings shows no marks.
 | `g` `G` | first, last |
 | `ctrl+d` `ctrl+u`, `f` `b`, `J` `K` | scroll the help pane half a screen, a page, a line |
 | `[` `]` | bring the help's previous or next section to the top |
-| `space` | fold the help section at the top, or open it again; the footer names which |
+| `space` | fold the help section at the top, or open it again; the footer names that section when it has room |
 | `enter` | take this one and quit |
 | `q` `esc` | leave with nothing |
 | `?` | show these keys, which any key closes |

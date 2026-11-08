@@ -16,6 +16,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/x/ansi"
 	"github.com/datapointchris/clisurface"
+	"github.com/datapointchris/gotermboard/breadcrumb"
 
 	"github.com/datapointchris/helpnav/helpbody"
 	"github.com/datapointchris/helpnav/nav"
@@ -36,21 +37,6 @@ const (
 const gutter = 2
 
 const footerSectionWidth = 20
-
-// browseKeys is the table ? shows.
-var browseKeys = []struct{ keys, does string }{
-	{"j k, down up", "move through the commands"},
-	{"l h, right left", "into a command, back out"},
-	{"g G, home end", "first, last"},
-	{"ctrl+d ctrl+u, pgdn pgup", "scroll the help half a screen"},
-	{"f b", "scroll the help a page"},
-	{"J K", "scroll the help a line"},
-	{"[ ]", "previous, next help section"},
-	{"space", "fold or open the top section"},
-	{"enter", "take this one and quit"},
-	{"q esc", "leave with nothing"},
-	{"?", "show these keys"},
-}
 
 // surfaceMsg carries a finished reading back into the loop.
 type surfaceMsg struct{ tool *clisurface.Tool }
@@ -199,86 +185,14 @@ func (m Model) key(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.keysOpen = false
 		return m, nil
 	}
-	switch msg.String() {
-	case "q", "esc":
-		return m, tea.Quit
-	case "?":
-		m.keysOpen = true
+	a := actionFor(msg.String())
+	// While the tool is still being read, quitting and ? are the only keys that
+	// can mean anything.
+	if a == nil || (m.nav == nil && !a.beforeTree) {
 		return m, nil
 	}
-	// Every other key needs a tree. While the tool is still being read, quitting
-	// is the only thing that can mean anything.
-	if m.nav == nil {
-		return m, nil
-	}
-
-	switch msg.String() {
-	case "enter":
-		// Always "this is the one". Descending is l/right, so enter never has
-		// to guess which of the two was meant.
-		m.chosen = true
-		return m, tea.Quit
-
-	case "j", "down":
-		m.nav.Next()
-		m.syncPreview()
-
-	case "k", "up":
-		m.nav.Prev()
-		m.syncPreview()
-
-	case "g", "home":
-		m.nav.First()
-		m.syncPreview()
-
-	case "G", "end":
-		m.nav.Last()
-		m.syncPreview()
-
-	case "l", "right":
-		if m.nav.Pending() {
-			// Named but not read. Fetching happens in a command so the
-			// interface stays alive while it does.
-			m.reading = true
-			return m, fill(m.nav.Binary(), m.nav.Selected().Path, m.depth, m.textWidth())
-		}
-		if m.nav.Enter() {
-			m.syncPreview()
-		}
-
-	case "h", "left":
-		if m.nav.Leave() {
-			m.syncPreview()
-		}
-
-	case "J":
-		m.help.Scroll(1)
-
-	case "K":
-		m.help.Scroll(-1)
-
-	case "ctrl+d", "pgdown":
-		m.help.Scroll(max(m.help.Height()/2, 1))
-
-	case "ctrl+u", "pgup":
-		m.help.Scroll(-max(m.help.Height()/2, 1))
-
-	case "f":
-		m.help.Scroll(m.help.Height())
-
-	case "b":
-		m.help.Scroll(-m.help.Height())
-
-	case "]":
-		m.help.Jump(1)
-
-	case "[":
-		m.help.Jump(-1)
-
-	case " ":
-		m.help.Toggle()
-	}
-	return m, nil
+	cmd := a.run(&m)
+	return m, cmd
 }
 
 // Command is the argv the reader stopped on, or nil if they walked away.
@@ -400,42 +314,19 @@ func (m Model) band(width int) string {
 	return strings.Repeat(" ", gutter) + strings.Join(painted, hintStyle.Render(pathSeparator))
 }
 
-const (
-	pathSeparator = " › "
-	// pathSegmentFloor is how narrow the widest segment is cut before the
-	// outermost goes altogether.
-	pathSegmentFloor = 12
-)
+const pathSeparator = " › "
 
-// fitPath cuts segments to fit room. The longest is cut first, so a long
-// section name keeps its first words and every short command name stays whole,
-// and the outermost goes after that.
+// fitPath cuts segments to fit room as gotermboard's reader cuts its top line,
+// so a long section name gives way before any command name does.
 func fitPath(segments []string, room int) []string {
-	gap := ansi.StringWidth(pathSeparator)
 	widths := make([]int, len(segments))
-	total := -gap
 	for i, segment := range segments {
 		widths[i] = ansi.StringWidth(segment)
-		total += widths[i] + gap
 	}
-	for total > room && len(segments) > 1 {
-		widest := 0
-		for i, w := range widths {
-			if w > widths[widest] {
-				widest = i
-			}
-		}
-		if widths[widest] > pathSegmentFloor {
-			widths[widest]--
-			total--
-			continue
-		}
-		total -= widths[0] + gap
-		segments, widths = segments[1:], widths[1:]
-	}
-	fitted := make([]string, len(segments))
-	for i, segment := range segments {
-		fitted[i] = ansi.Truncate(segment, min(widths[i], max(room, 1)), "…")
+	dropped, widths := breadcrumb.Fit(widths, ansi.StringWidth(pathSeparator), room)
+	fitted := make([]string, len(widths))
+	for i, segment := range segments[dropped:] {
+		fitted[i] = ansi.Truncate(segment, widths[i], "…")
 	}
 	return fitted
 }
@@ -484,32 +375,12 @@ func (m Model) footer() string {
 	return commandStyle.Render(ansi.Truncate(cmd, room, "…")) + hintStyle.Render(keys)
 }
 
-// footerKeys is the key hints from fullest to barest. The fullest names the
-// section space folds.
-func (m Model) footerKeys() []string {
-	var space, spaceNamed string
-	if section, ok := m.help.Target(); ok {
-		space = "space fold"
-		if m.help.Folded(section) {
-			space = "space open"
-		}
-		spaceNamed = space + " " + ansi.Truncate(section.Name, footerSectionWidth, "…")
-	}
-	hints := func(parts ...string) string {
-		return "  " + strings.Join(slices.DeleteFunc(parts, func(s string) bool { return s == "" }), " · ")
-	}
-	return []string{
-		hints("j/k move", "l/h in/out", spaceNamed, "enter take", "? keys", "q quit"),
-		hints("j/k move", "l/h in/out", space, "enter take", "? keys", "q quit"),
-		hints("j/k move", "enter take", "? keys", "q quit"),
-		hints("? keys", "q quit"),
-	}
-}
-
 func keysScreen() string {
-	rows := make([]string, 0, len(browseKeys)+2)
-	for _, row := range browseKeys {
-		rows = append(rows, commandStyle.Render(fmt.Sprintf(" %-26s", row.keys))+rowStyle.Render(row.does))
+	rows := make([]string, 0, len(actions)+2)
+	for _, a := range actions {
+		if a.does != "" {
+			rows = append(rows, commandStyle.Render(fmt.Sprintf(" %-26s", a.shown))+rowStyle.Render(a.does))
+		}
 	}
 	rows = append(rows, "", hintStyle.Render(" any key closes this"))
 	return strings.Join(rows, "\n")

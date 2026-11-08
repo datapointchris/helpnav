@@ -1,27 +1,30 @@
-// Package helpbody splits one command's help screen at its headings, and keeps
-// a window over it with some of those sections folded away.
+// Package helpbody keeps a window over one command's help screen, with some of
+// its sections folded away.
 //
 // It renders nothing and knows nothing about a terminal, for the reason nav
-// does not: which section a line belongs to, what a fold hides and where the
-// window lands after one are what is worth testing, and a test of them needs
-// no screen.
+// does not: what a fold hides and where the window lands after one are what is
+// worth testing, and a test of them needs no screen. Where the sections start
+// is clisurface's to say, because it reads the same screens to walk the tool.
 package helpbody
 
 import (
 	"strings"
-	"unicode"
-	"unicode/utf8"
 
 	"github.com/charmbracelet/x/ansi"
+	"github.com/datapointchris/clisurface"
 )
 
 // tab is what a tab in a help screen becomes. kubectl indents its option
 // descriptions with one, and a tab's width is otherwise the terminal's guess.
 const tab = "    "
 
-// maxHeadingWords is the longest a heading runs. git's "Low-level Commands /
-// Syncing Repositories" is the longest seen, and a sentence is longer.
-const maxHeadingWords = 6
+// minRoom is the narrowest a wrapped description runs. A description whose
+// own column leaves less than this moves left to get it.
+const minRoom = 20
+
+// nextLineHang is where a description goes when it cannot sit beside its flag,
+// which is where clap puts every description in its long help.
+const nextLineHang = 10
 
 // Section is one heading of a help screen and the lines under it, up to the
 // next heading.
@@ -45,76 +48,28 @@ type Body struct {
 	sections []Section
 }
 
-// Parse splits a help screen at its headings.
-//
-// A heading is a short line at the left edge, after a blank line, with an
-// indented line or an underline rule under it. That one shape covers clap's
-// "Options:", gh's "GENERAL COMMANDS", cobra's "Global Flags:" and git's
-// "Main Porcelain Commands". A line carrying its content after a colon, as
-// "Usage: uv add [OPTIONS]" does, is not a heading, so the description
-// docker prints under its usage line never folds away with it.
+// Parse splits a help screen at the headings [clisurface.Sections] finds.
 func Parse(text string) Body {
 	text = strings.TrimRight(strings.ReplaceAll(text, "\t", tab), "\n")
 	if strings.TrimSpace(ansi.Strip(text)) == "" {
 		return Body{}
 	}
 	body := Body{lines: strings.Split(text, "\n")}
-	for i := range body.lines {
-		if !body.headingAt(i) {
-			continue
-		}
-		if n := len(body.sections); n > 0 {
-			body.sections[n-1].end = i
-		}
-		body.sections = append(body.sections, Section{Name: headingName(body.lines[i]), heading: i})
+	for i, line := range body.lines {
+		body.lines[i] = strings.TrimRight(line, " ")
 	}
-	for i := range body.sections {
-		s := &body.sections[i]
-		if i == len(body.sections)-1 {
-			s.end = len(body.lines)
-		}
-		last := s.end
-		for last > s.heading+1 && blank(body.lines[last-1]) {
+	for _, s := range clisurface.Sections(text) {
+		end := min(s.End, len(body.lines))
+		last := end
+		for last > s.Line+1 && blank(body.lines[last-1]) {
 			last--
 		}
-		s.Lines = last - s.heading - 1
+		body.sections = append(body.sections, Section{Name: s.Title, Lines: last - s.Line - 1, heading: s.Line, end: end})
 	}
 	return body
 }
 
-func (b Body) headingAt(i int) bool {
-	if i+1 >= len(b.lines) || (i > 0 && !blank(b.lines[i-1])) {
-		return false
-	}
-	text := strings.TrimRight(ansi.Strip(b.lines[i]), " ")
-	if text == "" || text[0] == ' ' || len(strings.Fields(text)) > maxHeadingWords {
-		return false
-	}
-	if colon := strings.IndexByte(text, ':'); colon >= 0 && colon != len(text)-1 {
-		return false
-	}
-	end, _ := utf8.DecodeLastRuneInString(text)
-	if !unicode.IsLetter(end) && !unicode.IsDigit(end) && end != ':' && end != ')' {
-		return false
-	}
-	return indented(b.lines[i+1]) || underline(b.lines[i+1])
-}
-
-func headingName(line string) string {
-	return strings.TrimSpace(strings.TrimSuffix(strings.TrimSpace(ansi.Strip(line)), ":"))
-}
-
 func blank(line string) bool { return strings.TrimSpace(ansi.Strip(line)) == "" }
-
-func indented(line string) bool {
-	text := ansi.Strip(line)
-	return strings.HasPrefix(text, " ") && strings.TrimSpace(text) != ""
-}
-
-func underline(line string) bool {
-	text := strings.TrimSpace(ansi.Strip(line))
-	return len(text) >= 3 && strings.Trim(text, "-=") == ""
-}
 
 // Mark is what a row's chevron cell holds.
 type Mark int
@@ -141,9 +96,8 @@ type Row struct {
 	line    int
 }
 
-// layout lays the body out at width, with each section folds names hidden
-// under its heading. A line wider than width wraps rather than being cut,
-// because gh wraps its help in source and ignores the width it is given.
+// layout lays the body out at width. A section named in folds shows only its
+// heading row.
 func (b Body) layout(width int, folds map[string]bool) []Row {
 	var rows []Row
 	section, next := -1, 0
@@ -156,7 +110,7 @@ func (b Body) layout(width int, folds map[string]bool) []Row {
 				i = s.end - 1
 				continue
 			}
-			for n, text := range wrap(b.lines[i], width) {
+			for n, text := range wrapLine(b.lines[i], width) {
 				row := Row{Text: text, section: section, line: i}
 				if n == 0 {
 					row.Mark = Open
@@ -165,47 +119,94 @@ func (b Body) layout(width int, folds map[string]bool) []Row {
 			}
 			continue
 		}
-		for _, text := range wrap(b.lines[i], width) {
+		until := len(b.lines)
+		if next < len(b.sections) {
+			until = b.sections[next].heading
+		}
+		texts, used := fit(b.lines[i:until], width)
+		for _, text := range texts {
 			rows = append(rows, Row{Text: text, section: section, line: i})
 		}
+		i += used - 1
 	}
 	return rows
 }
 
-// minHangRoom is the narrowest a wrapped line's continuation runs. A line
-// hanging further right than that hangs at the width less this instead.
-const minHangRoom = 10
+// fit lays out the first of lines at width, with the lines after it that
+// continue its description, and says how many lines it used.
+//
+// Lines that fit are drawn as the tool printed them. An option whose lines do
+// not is laid out again with its description as one paragraph, because a tool
+// asked for a narrow width can still pad its flag column past it, and clap then
+// prints one word of description a line. The paragraph wraps down its own
+// column where that leaves room, and under its flag at nextLineHang otherwise,
+// so no word is cut in two.
+func fit(lines []string, width int) ([]string, int) {
+	plain := ansi.Strip(lines[0])
+	termEnd, column, ok := descriptionColumn(plain)
+	if !ok {
+		return wrapLine(lines[0], width), 1
+	}
+	n := 1
+	for n < len(lines) && continues(lines[n], column) {
+		n++
+	}
+	entry := lines[:n]
+	if !anyWider(entry, width) {
+		return append([]string(nil), entry...), n
+	}
+	parts := make([]string, 0, n)
+	for _, line := range entry {
+		parts = append(parts, strings.TrimSpace(ansi.TruncateLeft(line, column, "")))
+	}
+	description := strings.Join(parts, " ")
+	term := ansi.Cut(lines[0], 0, termEnd)
 
-// wrap breaks one line into rows of width. Where an option's flag and its
-// description are two columns, the description wraps down its own column, so
-// it reads as the tool laid it out. A tool asked for a narrow width can still
-// lay its help out wider: docker pads its flag column to 41 cells, and clap
-// to 49 with one word of description a line. Such a column moves left to fit,
-// and a flag too long to share a row with it takes a row of its own.
-func wrap(line string, width int) []string {
-	if ansi.StringWidth(line) <= width {
-		return []string{line}
-	}
-	text := ansi.Strip(line)
-	limit := max(width-minHangRoom, 0)
-	from := len(text) - len(strings.TrimLeft(text, " "))
-	var rows []string
-	term, termEnd := "", 0
-	if end, column, ok := descriptionColumn(text); ok {
-		from, termEnd = column, end
-		term = ansi.Cut(line, 0, end)
-	}
-	hang := min(from, limit)
-	if term != "" && termEnd+2 > hang {
+	hang, rows := column, []string(nil)
+	if width-column < minRoom {
+		indent := len(plain) - len(strings.TrimLeft(plain, " "))
+		hang = min(max(nextLineHang, indent+2), max(width-minRoom, 0))
 		rows = append(rows, ansi.Truncate(term, width, "…"))
 		term = ""
 	}
-	for i, row := range strings.Split(ansi.Wrap(ansi.TruncateLeft(line, from, ""), width-hang, ""), "\n") {
+	for i, row := range strings.Split(ansi.Wrap(description, width-hang, ""), "\n") {
 		lead := strings.Repeat(" ", hang)
 		if i == 0 && term != "" {
 			lead = term + strings.Repeat(" ", hang-termEnd)
 		}
 		rows = append(rows, lead+row)
+	}
+	return rows, n
+}
+
+func anyWider(lines []string, width int) bool {
+	for _, line := range lines {
+		if ansi.StringWidth(line) > width {
+			return true
+		}
+	}
+	return false
+}
+
+// continues says a line carries on the description that starts at column.
+func continues(line string, column int) bool {
+	text := ansi.Strip(line)
+	trimmed := strings.TrimLeft(text, " ")
+	return trimmed != "" && len(text)-len(trimmed) == column
+}
+
+// wrapLine breaks one line into rows of width, each continuing at the line's
+// indent where that leaves minRoom, and further left where it does not.
+func wrapLine(line string, width int) []string {
+	if ansi.StringWidth(line) <= width {
+		return []string{line}
+	}
+	text := ansi.Strip(line)
+	indent := len(text) - len(strings.TrimLeft(text, " "))
+	hang := min(indent, max(width-minRoom, 0))
+	var rows []string
+	for _, row := range strings.Split(ansi.Wrap(ansi.TruncateLeft(line, indent, ""), width-hang, ""), "\n") {
+		rows = append(rows, strings.Repeat(" ", hang)+row)
 	}
 	return rows
 }
@@ -256,22 +257,23 @@ func (r *Reading) Resize(width, height int) {
 	r.width, r.height = max(width, 1), max(height, 1)
 	r.rows = r.body.layout(r.width, r.folds)
 	r.top = r.firstRowOf(line)
-	r.clamp()
+	r.keepInText()
 }
 
 // Height is how many rows the window shows.
 func (r *Reading) Height() int { return r.height }
 
-// Window is the rows that show, top first.
+// Window is the rows that show, top first. It holds fewer than Height rows
+// where a fold or a jump left the top row within a screen of the end.
 func (r *Reading) Window() []Row {
 	return r.rows[r.top:min(r.top+r.height, len(r.rows))]
 }
 
-// Scroll moves the window by lines, stopping where either end of the text
-// reaches the window's edge.
+// Scroll moves the window by lines, stopping where the last row reaches the
+// window's bottom. A window already further down than that, as a fold at the
+// end leaves it, moves only up.
 func (r *Reading) Scroll(lines int) {
-	r.top += lines
-	r.clamp()
+	r.top = max(min(r.top+lines, max(len(r.rows)-r.height, r.top)), 0)
 }
 
 // Target is the section space acts on: the one holding the top row, or the
@@ -289,8 +291,9 @@ func (r *Reading) Folded(s Section) bool { return r.folds[s.Name] }
 
 // Toggle folds the target section, or opens it where it is folded, and reports
 // whether there was one. A section folded while its heading sat above the
-// window brings that heading to the top, so it is still the target and the
-// next press opens what this one closed.
+// window brings that heading to the top, and the window stays there however
+// little text follows, so the heading is still the target and the next press
+// opens what this one closed.
 func (r *Reading) Toggle() bool {
 	i := r.target()
 	if i < 0 {
@@ -303,7 +306,7 @@ func (r *Reading) Toggle() bool {
 	if scrolledOff {
 		r.top = r.firstRowOf(s.heading)
 	}
-	r.clamp()
+	r.keepInText()
 	return true
 }
 
@@ -322,7 +325,7 @@ func (r *Reading) Jump(direction int) bool {
 			break
 		}
 	}
-	r.clamp()
+	r.keepInText()
 	return r.top != from
 }
 
@@ -365,6 +368,7 @@ func (r *Reading) firstRowOf(line int) int {
 	return len(r.rows)
 }
 
-func (r *Reading) clamp() {
-	r.top = max(min(r.top, len(r.rows)-r.height), 0)
+// keepInText holds the top row on a row of the text.
+func (r *Reading) keepInText() {
+	r.top = max(min(r.top, len(r.rows)-1), 0)
 }
