@@ -21,9 +21,8 @@ helpnav-widget() {
   # </dev/tty because the widget's stdin is not guaranteed to be the terminal,
   # and a full-screen reader that cannot read keys hangs rather than failing.
   # `--` because the word is always a tool. Without it a line starting with
-  # `update` would update helpnav, and one starting with `--help` would become
-  # helpnav's help.
-  chosen="$(helpnav -- "$tool" </dev/tty)"
+  # `--help` would become helpnav's help.
+  chosen="$(helpnav tui -- "$tool" </dev/tty)"
   if [[ -n "$chosen" ]]; then
     BUFFER="$chosen"
     CURSOR=${#BUFFER}
@@ -35,16 +34,16 @@ zle -N helpnav-widget
 
 # Loads the next prompt instead, for when the line you are on is worth keeping.
 hn() {
-  # `print -z` loads whatever helpnav prints onto the next prompt, and helpnav
-  # with no tool prints its own help. A bare call and a help flag are answered
-  # here instead, so no help text lands on the prompt.
+  # `print -z` loads whatever helpnav prints onto the next prompt, and
+  # `helpnav tui --help` prints to stdout. A bare call and a help flag are
+  # answered here instead, so no help text lands on the prompt.
   if [[ $# -eq 0 || -n ${@[(r)(-h|--help)]} ]]; then
     print -u2 -- "usage: hn [--depth N] <tool> — loads the command you stop on at the next prompt"
     return
   fi
-  # The last word is the tool and goes after `--`, so `hn update` browses a
-  # tool called update rather than updating helpnav. Flags stay before it.
+  # The last word is the tool and goes after `--`, so a tool whose name starts
+  # with a dash is browsed rather than read as a flag. Flags stay before it.
   local chosen
-  chosen="$(helpnav "${@[1,-2]}" -- "${@[-1]}" </dev/tty)"
+  chosen="$(helpnav tui "${@[1,-2]}" -- "${@[-1]}" </dev/tty)"
   [[ -n "$chosen" ]] && print -z -- "$chosen"
 }

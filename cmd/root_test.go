@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -22,15 +23,29 @@ func runLine(t *testing.T, args ...string) error {
 	return execute(context.Background(), autoupdate.Config{Suppress: true})
 }
 
-// Each line names a word helpnav cannot act on, and is answered with that word
-// and exit 2 rather than with a screen or a flag.
+// Each line names a word helpnav cannot act on, or asks for a screen with no
+// terminal to draw it on, and is answered in words with exit 2 rather than with
+// a screen or a flag.
 func TestAMistypedWordIsRefusedByName(t *testing.T) {
-	t.Setenv("PATH", t.TempDir())
+	bin := t.TempDir()
+	t.Setenv("PATH", bin)
+	if err := os.WriteFile(filepath.Join(bin, "tool"), []byte("#!/bin/sh\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	// A terminal running the suite would otherwise be the browser's.
+	stdin := os.Stdin
+	devNull, err := os.Open(os.DevNull)
+	if err != nil {
+		t.Fatal(err)
+	}
+	os.Stdin = devNull
+	t.Cleanup(func() { os.Stdin = stdin; _ = devNull.Close() })
 	for _, c := range []struct {
 		args []string
 		want string
 	}{
-		{[]string{"no-such-tool"}, `"no-such-tool" is not a command on PATH`},
+		{[]string{"tui", "no-such-tool"}, `"no-such-tool" is not a command on PATH`},
+		{[]string{"tui", "tool"}, "helpnav tui needs a terminal; --once prints one frame and --json the command tree"},
 		{[]string{"shell", "bogus"}, `unknown command "bogus" for "helpnav shell"`},
 		{[]string{"shell", "bogus", "--json"}, `unknown command "bogus" for "helpnav shell"`},
 		{[]string{"shell", "bogus", "--help"}, `unknown command "bogus" for "helpnav shell"`},

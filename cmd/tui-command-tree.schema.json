@@ -1,0 +1,83 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:helpnav:tui-command-tree:v1",
+  "title": "tui-command-tree",
+  "description": "`helpnav tui <tool> --json`: the command tree the browser opens on, each command with the help it printed. A command too deep to read up front is listed with `unread` set and no children.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "binary", "framework", "read_at", "root"],
+  "properties": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "The version of this document's shape. A field added keeps it, and a field reshaped or removed raises it."
+    },
+    "binary": {
+      "type": "string",
+      "description": "The tool that was read, as it was named on the command line."
+    },
+    "framework": {
+      "type": "string",
+      "description": "Which shape of help the tree was read from, such as cobra, rich, heading, argparse or section."
+    },
+    "read_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When the tool was read, in UTC."
+    },
+    "root": {
+      "$ref": "#/$defs/command",
+      "description": "The tool itself, whose name is the binary and whose path is empty."
+    }
+  },
+  "$defs": {
+    "command": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "path", "argv", "short", "usage", "flags", "help", "unread", "children"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "The command's own word, the last of its argv."
+        },
+        "path": {
+          "type": "array",
+          "items": {"type": "string"},
+          "description": "The words after the binary that reach this command."
+        },
+        "argv": {
+          "type": "array",
+          "items": {"type": "string"},
+          "minItems": 1,
+          "description": "The binary, then the path: what the browser prints when enter takes this command."
+        },
+        "short": {
+          "type": "string",
+          "description": "The one-line description the parent's help gave this command. Empty for the root."
+        },
+        "usage": {
+          "type": "string",
+          "description": "The usage line parsed out of this command's help, or empty where it printed none."
+        },
+        "flags": {
+          "type": "array",
+          "items": {"type": "string"},
+          "description": "Each long flag the help names, once, in the order it first appears."
+        },
+        "help": {
+          "type": "string",
+          "description": "Everything the command printed for --help, without color. Empty for a command that was not read."
+        },
+        "unread": {
+          "type": "boolean",
+          "description": "The command was named but not read, because the tree was too large to read whole. Its children are missing rather than absent, and the browser reads them on the first step into it."
+        },
+        "children": {
+          "type": "array",
+          "items": {"$ref": "#/$defs/command"},
+          "description": "The commands below this one, in the order the tool lists them."
+        }
+      }
+    }
+  }
+}

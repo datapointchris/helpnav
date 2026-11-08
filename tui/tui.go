@@ -442,7 +442,7 @@ func column(rows []string, cursor, width, height int, active bool) string {
 // Run opens the browser and returns the command the reader stopped on.
 //
 // The interface is drawn on stderr so stdout carries only the answer. That is
-// what lets `$(helpnav docker)` work: the browser paints on the terminal while
+// what lets `$(helpnav tui docker)` work: the browser paints on the terminal while
 // the chosen command goes down the pipe.
 func Run(binary string, depth int) ([]string, error) {
 	program := tea.NewProgram(
@@ -462,4 +462,22 @@ func Run(binary string, depth int) ([]string, error) {
 		return nil, model.Err()
 	}
 	return model.Command(), nil
+}
+
+// Once reads binary and draws the screen the browser opens on, at width by
+// height, through the same messages the runtime would send it.
+func Once(binary string, depth, width, height int) (string, error) {
+	var model tea.Model = New(binary, depth)
+	model, read := model.Update(tea.WindowSizeMsg{Width: width, Height: height})
+	if read != nil {
+		model, _ = model.Update(read())
+	}
+	opened, ok := model.(Model)
+	if !ok {
+		return "", nil
+	}
+	if opened.Err() != nil {
+		return "", opened.Err()
+	}
+	return opened.View(), nil
 }
