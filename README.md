@@ -69,12 +69,20 @@ CMD=$(helpnav docker)  # the screen draws on stderr; the chosen command goes to 
 The three columns are where you came from, what is here, and the help for the
 row under the cursor. The footer carries the command as it assembles.
 
+The help pane's top line names the command the help belongs to. Once a section's
+heading scrolls off, the line names that section too, as in `uv › add › Options`.
+Each section heading carries `▾`, or `▸` with a line count while folded. A fold
+holds for every command printing that heading, so `Global options` closed once
+stays closed as you move. A help with no headings shows no marks.
+
 | Key | |
 | --- | --- |
 | `j` `k` | move through the commands |
 | `l` `h` | into a command, back out |
 | `g` `G` | first, last |
 | `ctrl+d` `ctrl+u`, `f` `b`, `J` `K` | scroll the help pane half a screen, a page, a line |
+| `[` `]` | bring the help's previous or next section to the top |
+| `space` | fold the help section at the top, or open it again; the footer names that section when it has room |
 | `enter` | take this one and quit |
 | `q` `esc` | leave with nothing |
 | `?` | show these keys, which any key closes |
