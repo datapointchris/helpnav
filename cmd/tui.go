@@ -7,7 +7,6 @@ import (
 	"io"
 	"os"
 	"os/exec"
-	"strconv"
 	"strings"
 	"time"
 
@@ -15,6 +14,7 @@ import (
 	"github.com/charmbracelet/x/term"
 	"github.com/datapointchris/clisurface"
 	"github.com/datapointchris/goclikit"
+	"github.com/datapointchris/gotermboard/printedframe"
 	"github.com/spf13/cobra"
 
 	"github.com/datapointchris/helpnav/tui"
@@ -30,7 +30,8 @@ var (
 // keyboard nobody holds.
 var errNoTerminal = errors.New("helpnav tui needs a terminal; --once prints one frame and --json the command tree")
 
-// The frame --once draws where COLUMNS or LINES is unset.
+// The frame --once draws where COLUMNS and LINES are unset and stdout is no
+// terminal.
 const (
 	onceFallbackWidth  = 120
 	onceFallbackHeight = 40
@@ -118,7 +119,8 @@ func runTUI(out io.Writer, binary string) error {
 // or a pipe carries no escapes, because what reads it there is a program or a
 // diff rather than a terminal.
 func printFrame(out io.Writer, binary string) error {
-	frame, err := tui.Once(binary, depthFlag, envSize("COLUMNS", onceFallbackWidth), envSize("LINES", onceFallbackHeight))
+	width, height := printedframe.Size(onceFallbackWidth, onceFallbackHeight)
+	frame, err := tui.Once(binary, depthFlag, width, height)
 	if err != nil {
 		return err
 	}
@@ -127,14 +129,6 @@ func printFrame(out io.Writer, binary string) error {
 	}
 	_, err = fmt.Fprintln(out, frame)
 	return err
-}
-
-// envSize reads COLUMNS or LINES, the size a caller with no terminal asks for.
-func envSize(name string, fallback int) int {
-	if n, err := strconv.Atoi(os.Getenv(name)); err == nil && n > 0 {
-		return n
-	}
-	return fallback
 }
 
 // printTree prints the command tree the browser opens on, as --json.
