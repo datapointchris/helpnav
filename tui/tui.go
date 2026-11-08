@@ -427,6 +427,10 @@ func column(rows []string, cursor, width, height int, active bool) string {
 			default:
 				b.WriteString(rowStyle.Width(width).Render(text))
 			}
+		} else {
+			// A column with nothing to list still holds its width, as the parent
+			// column does at the tool's top level, so the others keep their place.
+			b.WriteString(strings.Repeat(" ", width))
 		}
 		if i < height-1 {
 			b.WriteByte('\n')
