@@ -14,10 +14,11 @@ reads comes from `clisurface`; this repo is the interaction model over it.
   learn its shape. A noun that performs a read when invoked with no verb would
   perform it.
 
-- **`nav` renders nothing; the view holds no tree logic.** The cursor over the
-  command tree is a plain package with no terminal and no framework, which is
-  the only reason it can be tested at all. A bubbletea model mixes state with
-  drawing, so anything about *where you are* that leaks into the view stops
+- **`nav` and `helpbody` render nothing; the view holds no tree or fold logic.**
+  The cursor over the command tree, and the window over one help screen with its
+  folded sections, are plain packages with no terminal and no framework, which
+  is the only reason they can be tested at all. A bubbletea model mixes state
+  with drawing, so anything about *where you are* that leaks into the view stops
   being testable the moment it does.
 
 - **Nothing here knows about any particular portfolio.** helpnav reads whatever

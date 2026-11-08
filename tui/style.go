@@ -27,4 +27,8 @@ var (
 
 	hintStyle = lipgloss.NewStyle().
 			Foreground(lipgloss.Color("8"))
+
+	// previewedStyle marks, on the band over the help, the command whose help
+	// shows.
+	previewedStyle = lipgloss.NewStyle().Bold(true)
 )

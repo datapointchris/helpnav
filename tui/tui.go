@@ -9,15 +9,15 @@ package tui
 import (
 	"fmt"
 	"os"
+	"slices"
 	"strings"
 
-	"github.com/charmbracelet/bubbles/key"
-	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/x/ansi"
 	"github.com/datapointchris/clisurface"
 
+	"github.com/datapointchris/helpnav/helpbody"
 	"github.com/datapointchris/helpnav/nav"
 )
 
@@ -31,6 +31,12 @@ const (
 	totalShare   = parentShare + currentShare + previewShare
 )
 
+// gutter is the cells left of the help text, where a heading's chevron sits.
+// Every row keeps it, so no column of the help moves as a section folds.
+const gutter = 2
+
+const footerSectionWidth = 20
+
 // browseKeys is the table ? shows.
 var browseKeys = []struct{ keys, does string }{
 	{"j k, down up", "move through the commands"},
@@ -39,6 +45,8 @@ var browseKeys = []struct{ keys, does string }{
 	{"ctrl+d ctrl+u, pgdn pgup", "scroll the help half a screen"},
 	{"f b", "scroll the help a page"},
 	{"J K", "scroll the help a line"},
+	{"[ ]", "previous, next help section"},
+	{"space", "fold or open the top section"},
 	{"enter", "take this one and quit"},
 	{"q esc", "leave with nothing"},
 	{"?", "show these keys"},
@@ -66,9 +74,13 @@ type Model struct {
 	binary string
 	depth  int
 
-	nav     *nav.Nav
-	preview viewport.Model
-	err     error
+	nav  *nav.Nav
+	help *helpbody.Reading
+	err  error
+
+	// folds names the help sections folded away. It outlives each command's
+	// help, so a section closed in one stays closed in the next that prints it.
+	folds map[string]bool
 
 	width   int
 	height  int
@@ -84,7 +96,7 @@ type Model struct {
 
 // New builds a browser that will read binary once it knows how wide it is.
 func New(binary string, depth int) Model {
-	return Model{binary: binary, depth: depth}
+	return Model{binary: binary, depth: depth, folds: map[string]bool{}}
 }
 
 // Init is the first Cmd the runtime runs. Nothing happens yet: reading the tool
@@ -145,9 +157,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// cost of a read on a window drag.
 		if first && !m.reading && m.nav == nil {
 			m.reading = true
-			return m, read(m.binary, m.depth, m.previewWidth())
+			return m, read(m.binary, m.depth, m.textWidth())
 		}
-		m.syncPreview()
 		return m, nil
 
 	case surfaceMsg:
@@ -229,7 +240,7 @@ func (m Model) key(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			// Named but not read. Fetching happens in a command so the
 			// interface stays alive while it does.
 			m.reading = true
-			return m, fill(m.nav.Binary(), m.nav.Selected().Path, m.depth, m.previewWidth())
+			return m, fill(m.nav.Binary(), m.nav.Selected().Path, m.depth, m.textWidth())
 		}
 		if m.nav.Enter() {
 			m.syncPreview()
@@ -241,16 +252,31 @@ func (m Model) key(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 
 	case "J":
-		m.preview.ScrollDown(1)
+		m.help.Scroll(1)
 
 	case "K":
-		m.preview.ScrollUp(1)
+		m.help.Scroll(-1)
 
-	default:
-		// Anything else is the preview's: page keys, half-page scrolls.
-		var cmd tea.Cmd
-		m.preview, cmd = m.preview.Update(msg)
-		return m, cmd
+	case "ctrl+d", "pgdown":
+		m.help.Scroll(max(m.help.Height()/2, 1))
+
+	case "ctrl+u", "pgup":
+		m.help.Scroll(-max(m.help.Height()/2, 1))
+
+	case "f":
+		m.help.Scroll(m.help.Height())
+
+	case "b":
+		m.help.Scroll(-m.help.Height())
+
+	case "]":
+		m.help.Jump(1)
+
+	case "[":
+		m.help.Jump(-1)
+
+	case " ":
+		m.help.Toggle()
 	}
 	return m, nil
 }
@@ -266,27 +292,27 @@ func (m Model) Command() []string {
 // Err is why the browser closed, when it closed because it could not read.
 func (m Model) Err() error { return m.err }
 
-// layout sizes the panes from the terminal. One line goes to the footer and one
-// to the gap above it.
+// layout fits the help to the preview column again, keeping its top line.
 func (m *Model) layout() {
-	m.preview = viewport.New(m.previewWidth(), m.bodyHeight())
-	m.preview.KeyMap = previewKeys()
+	if m.help != nil {
+		m.help.Resize(m.textWidth(), m.helpHeight())
+	}
 }
 
-// previewKeys narrows the viewport's defaults, leaving d, u and space unbound.
-// Those letters read, undo and toggle in other terminal programs, and nothing
-// here does any of the three.
-func previewKeys() viewport.KeyMap {
-	keys := viewport.DefaultKeyMap()
-	keys.PageDown = key.NewBinding(key.WithKeys("f"))
-	keys.PageUp = key.NewBinding(key.WithKeys("b"))
-	keys.HalfPageDown = key.NewBinding(key.WithKeys("ctrl+d", "pgdown"))
-	keys.HalfPageUp = key.NewBinding(key.WithKeys("ctrl+u", "pgup"))
-	return keys
-}
-
+// bodyHeight is what the footer and the gap above it leave for the columns.
 func (m Model) bodyHeight() int {
 	return max(m.height-2, 1)
+}
+
+// helpHeight is the preview column under its band line.
+func (m Model) helpHeight() int {
+	return max(m.bodyHeight()-1, 1)
+}
+
+// textWidth is the preview column right of the chevron gutter, which is the
+// width a tool is asked to wrap its help at.
+func (m Model) textWidth() int {
+	return max(m.previewWidth()-gutter, 1)
 }
 
 func (m Model) columnWidth(share int) int {
@@ -297,19 +323,22 @@ func (m Model) previewWidth() int {
 	return max(m.width-m.columnWidth(parentShare)-m.columnWidth(currentShare), 1)
 }
 
-// syncPreview points the viewport at whatever is under the cursor now. The
-// selection is preferred over the current command, because the reader is
-// deciding about the thing they are pointing at.
+// previewed is the command whose help shows. The selection is preferred over
+// the current command, because the reader is deciding about the thing they are
+// pointing at.
+func (m Model) previewed() *clisurface.Node {
+	if node := m.nav.Selected(); node != nil {
+		return node
+	}
+	return m.nav.Node()
+}
+
+// syncPreview opens the help of whatever is under the cursor now, at its top.
 func (m *Model) syncPreview() {
 	if m.nav == nil {
 		return
 	}
-	node := m.nav.Selected()
-	if node == nil {
-		node = m.nav.Node()
-	}
-	m.preview.SetContent(node.Body)
-	m.preview.GotoTop()
+	m.help = helpbody.NewReading(helpbody.Parse(m.previewed().Body), m.folds, m.textWidth(), m.helpHeight())
 }
 
 // View draws the three columns and the command being assembled.
@@ -332,19 +361,149 @@ func (m Model) View() string {
 
 	left := column(childNames(parentNode), parentSel, m.columnWidth(parentShare), body, false)
 	middle := column(names(m.nav.Children()), m.nav.Cursor(), m.columnWidth(currentShare), body, true)
-	right := lipgloss.NewStyle().Width(m.previewWidth()).Height(body).Render(m.preview.View())
+	right := lipgloss.NewStyle().Width(m.previewWidth()).Height(body).Render(m.helpPane())
 
 	panes := lipgloss.JoinHorizontal(lipgloss.Top, left, middle, right)
 	return panes + "\n" + m.footer()
 }
 
+// helpPane is the band line naming what the help belongs to, then the window
+// over the help with each heading's chevron in the gutter.
+func (m Model) helpPane() string {
+	width := m.previewWidth()
+	lines := []string{m.band(width)}
+	for _, row := range m.help.Window() {
+		lines = append(lines, helpRow(row, width))
+	}
+	return strings.Join(lines, "\n")
+}
+
+// band names the command whose help shows, then the section the top row sits
+// in once that section's heading has scrolled off. It holds the top of the
+// column whatever the scroll, so the help never has to be paged back to learn
+// whose it is.
+func (m Model) band(width int) string {
+	words := append([]string{m.nav.Binary()}, m.previewed().Path...)
+	segments := slices.Clone(words)
+	if section, ok := m.help.Sticky(); ok {
+		segments = append(segments, section.Name)
+	}
+	fitted := fitPath(segments, width-gutter)
+	command := len(words) - 1 - (len(segments) - len(fitted))
+	painted := make([]string, len(fitted))
+	for i, segment := range fitted {
+		painted[i] = segment
+		if i == command {
+			painted[i] = previewedStyle.Render(segment)
+		}
+	}
+	return strings.Repeat(" ", gutter) + strings.Join(painted, hintStyle.Render(pathSeparator))
+}
+
+const (
+	pathSeparator = " › "
+	// pathSegmentFloor is how narrow the widest segment is cut before the
+	// outermost goes altogether.
+	pathSegmentFloor = 12
+)
+
+// fitPath cuts segments to fit room. The longest is cut first, so a long
+// section name keeps its first words and every short command name stays whole,
+// and the outermost goes after that.
+func fitPath(segments []string, room int) []string {
+	gap := ansi.StringWidth(pathSeparator)
+	widths := make([]int, len(segments))
+	total := -gap
+	for i, segment := range segments {
+		widths[i] = ansi.StringWidth(segment)
+		total += widths[i] + gap
+	}
+	for total > room && len(segments) > 1 {
+		widest := 0
+		for i, w := range widths {
+			if w > widths[widest] {
+				widest = i
+			}
+		}
+		if widths[widest] > pathSegmentFloor {
+			widths[widest]--
+			total--
+			continue
+		}
+		total -= widths[0] + gap
+		segments, widths = segments[1:], widths[1:]
+	}
+	fitted := make([]string, len(segments))
+	for i, segment := range segments {
+		fitted[i] = ansi.Truncate(segment, min(widths[i], max(room, 1)), "…")
+	}
+	return fitted
+}
+
+// helpRow draws one row of help behind its gutter. A folded heading says how
+// many lines it holds, so a closed section still shows its size.
+func helpRow(row helpbody.Row, width int) string {
+	mark := strings.Repeat(" ", gutter)
+	switch row.Mark {
+	case helpbody.Open:
+		mark = "▾ "
+	case helpbody.Folded:
+		mark = "▸ "
+	case helpbody.NoMark:
+	}
+	text := row.Text
+	// A tool's color left open at the end of a row would run into the next
+	// pane, because the columns are joined line by line.
+	if strings.Contains(text, "\x1b") {
+		text += ansi.ResetStyle
+	}
+	if row.Mark == helpbody.Folded {
+		text += hintStyle.Render(" · " + lineCount(row.Hidden))
+	}
+	return ansi.Truncate(mark+text, width, "…")
+}
+
+func lineCount(n int) string {
+	if n == 1 {
+		return "1 line"
+	}
+	return fmt.Sprintf("%d lines", n)
+}
+
 // footer shows the command the reader would leave with, which is the answer the
-// browser exists to produce.
+// browser exists to produce. Key hints give way before the command is cut.
 func (m Model) footer() string {
-	keys := "  j/k move · l/h in/out · enter take · ? keys · q quit"
-	room := max(m.width-lipgloss.Width(keys), 0)
 	cmd := strings.Join(m.nav.Command(), " ")
+	var keys string
+	for _, keys = range m.footerKeys() {
+		if lipgloss.Width(cmd)+lipgloss.Width(keys) <= m.width {
+			break
+		}
+	}
+	room := max(m.width-lipgloss.Width(keys), 0)
 	return commandStyle.Render(ansi.Truncate(cmd, room, "…")) + hintStyle.Render(keys)
+}
+
+// footerKeys is the key hints from fullest to barest. The fullest names the
+// section space folds.
+func (m Model) footerKeys() []string {
+	var space, spaceNamed string
+	if section, ok := m.help.Target(); ok {
+		space = "space fold"
+		if m.help.Folded(section) {
+			space = "space open"
+		}
+		spaceNamed = space + " " + ansi.Truncate(section.Name, footerSectionWidth, "…")
+	}
+	hints := func(parts ...string) string {
+		return "  " + strings.Join(slices.DeleteFunc(parts, func(s string) bool { return s == "" }), " · ")
+	}
+	return []string{
+		hints("j/k move", "l/h in/out", spaceNamed, "enter take", "? keys", "q quit"),
+		hints("j/k move", "l/h in/out", space, "enter take", "? keys", "q quit"),
+		hints("j/k move", "enter take", "? keys", "q quit"),
+		hints("? keys", "q quit"),
+	}
 }
 
 func keysScreen() string {
