@@ -10,6 +10,7 @@ import (
 
 	"github.com/datapointchris/goclikit"
 	"github.com/datapointchris/goselfupdate/autoupdate"
+	"github.com/datapointchris/gotermstyle/cobrahelp"
 	"github.com/spf13/cobra"
 )
 
@@ -68,6 +69,7 @@ func run() int {
 // execute takes the update check's config as an argument, so a test can run
 // the shipped path with the check suppressed.
 func execute(ctx context.Context, config autoupdate.Config) error {
+	cobrahelp.Install(rootCmd)
 	return goclikit.Execute(ctx, rootCmd, config)
 }
 
