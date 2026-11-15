@@ -12,14 +12,16 @@ reads comes from `clisurface`; this repo is the interaction model over it.
   `clisurface`'s invariant and helpnav must not add a path around it — no
   running a subcommand to see what it does, no writing into the tool's config to
   learn its shape. A noun that performs a read when invoked with no verb would
-  perform it.
+  perform it. `boundary_test.go` fails on any `os/exec` use but `LookPath`, and
+  on `os.StartProcess`, anywhere outside clisurface.
 
 - **`nav` and `helpbody` render nothing; the view holds no tree or fold logic.**
   The cursor over the command tree, and the window over one help screen with its
   folded sections, are plain packages with no terminal and no framework, which
   is the only reason they can be tested at all. A bubbletea model mixes state
   with drawing, so anything about *where you are* that leaks into the view stops
-  being testable the moment it does.
+  being testable the moment it does. `boundary_test.go` fails when either
+  package imports bubbletea, bubbles, lipgloss, a term package or cobra.
 
 - **Space and `[` `]` act on the help beside the list, not on the cursor's
   row.** Space folds the section at the top of the help, and `[` `]` move the
