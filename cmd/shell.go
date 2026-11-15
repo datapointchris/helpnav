@@ -3,6 +3,8 @@ package cmd
 import (
 	_ "embed"
 	"fmt"
+	"maps"
+	"slices"
 	"strings"
 
 	"github.com/datapointchris/goclikit"
@@ -12,9 +14,12 @@ import (
 //go:embed widgets.zsh
 var zshWidgets string
 
-// widgetShells is the one list. ValidArgs and the error that names the
-// alternatives both read it, so the two cannot disagree about what exists.
-var widgetShells = []string{"zsh"}
+// widgetBlocks maps each shell helpnav has a widget for to the block it
+// prints. ValidArgs, the refusal that names the alternatives, and the block
+// printed all read it, so supporting a shell is one entry here.
+var widgetBlocks = map[string]string{"zsh": zshWidgets}
+
+var widgetShells = slices.Sorted(maps.Keys(widgetBlocks))
 
 var shellCmd = goclikit.AsNamespace(&cobra.Command{
 	Use:     "shell",
@@ -42,12 +47,13 @@ already uses.`,
 	ValidArgs: widgetShells,
 	Args:      cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		if args[0] != "zsh" {
+		block, ok := widgetBlocks[args[0]]
+		if !ok {
 			return goclikit.UsageError(fmt.Errorf(
 				"no widget block for %q; helpnav has one for %s",
 				args[0], strings.Join(widgetShells, ", ")))
 		}
-		_, err := fmt.Fprint(cmd.OutOrStdout(), zshWidgets)
+		_, err := fmt.Fprint(cmd.OutOrStdout(), block)
 		return err
 	},
 }
