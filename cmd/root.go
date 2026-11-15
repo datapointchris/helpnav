@@ -35,9 +35,9 @@ That bounds what helpnav asks for, not what a tool does when asked. Answering
 --help means starting the program, so whatever it does before printing happens
 too. A tool that opens a window rather than printing is named in
 ` + "`helpnav do-not-run`" + ` and is never started.`,
-	Example: `  helpnav tui docker                     walk docker's commands and print the one you stop on
+	Example: `  helpnav tui docker                     print the docker command you stop on
   helpnav tui helpnav                    this tool, read by itself
-  eval "$(helpnav shell widgets zsh)"    land the command you stop on at the zsh prompt
+  eval "$(helpnav shell widgets zsh)"    land the command at the zsh prompt
   helpnav do-not-run                     the tools helpnav never starts`,
 	SilenceErrors: true,
 	SilenceUsage:  true,

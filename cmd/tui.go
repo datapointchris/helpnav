@@ -56,9 +56,9 @@ children_complete is false where the read stopped above its children.
 cmd/tui-command-tree.schema.json in helpnav's repository holds the shape --json
 prints. With no terminal and neither flag, helpnav tui refuses.`,
 	Example: `  helpnav tui docker            a large tree, read whole before you walk it
-  helpnav tui aws               too large to read up front, so read one level at a time
-  helpnav tui uv                a Rust tool; the reader does not care which language
-  CMD=$(helpnav tui docker)     the screen draws on stderr; the command goes to stdout
+  helpnav tui aws               too large up front, so read a level at a time
+  helpnav tui uv                a Rust tool, read the same as any other
+  CMD=$(helpnav tui docker)     the screen on stderr, the command on stdout
   COLUMNS=160 LINES=50 helpnav tui uv --once > frame.txt
   helpnav tui uv --json | jq '.root.children[].argv | join(" ")'`,
 	Args:          cobra.ExactArgs(1),
