@@ -70,7 +70,41 @@ func run() int {
 // the shipped path with the check suppressed.
 func execute(ctx context.Context, config autoupdate.Config) error {
 	cobrahelp.Install(rootCmd)
+	refuseUnknownHelpTopics(rootCmd)
 	return goclikit.Execute(ctx, rootCmd, config)
+}
+
+// refuseUnknownHelpTopics makes `helpnav help WORD` refuse a word that names no
+// command, the way `helpnav WORD` refuses it, with the near commands and exit 2.
+//
+// Cobra's own help command prints "Unknown help topic" and the root's usage for
+// such a word, then returns nil, so a mistyped topic exits 0 and offers nothing
+// near it. Its usage, description and completion are kept, and only what it does
+// with a topic is replaced. A word left over under a command with no subcommands
+// is that command's argument rather than a topic, so its help is printed.
+func refuseUnknownHelpTopics(root *cobra.Command) {
+	root.InitDefaultHelpCmd()
+	for _, help := range root.Commands() {
+		if help.Name() != "help" {
+			continue
+		}
+		help.Run = nil
+		help.RunE = func(cmd *cobra.Command, args []string) error {
+			target, rest, err := cmd.Root().Find(args)
+			if target == nil {
+				target = cmd.Root()
+			}
+			if len(rest) > 0 && (err != nil || target.HasSubCommands()) {
+				return goclikit.UnknownCommand(target, rest[0])
+			}
+			if err != nil {
+				return goclikit.UsageError(err)
+			}
+			target.InitDefaultHelpFlag()
+			target.InitDefaultVersionFlag()
+			return target.Help()
+		}
+	}
 }
 
 const (

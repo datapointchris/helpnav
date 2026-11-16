@@ -38,6 +38,8 @@ func TestAMistypedWordIsRefusedByName(t *testing.T) {
 		{[]string{"shell", "bogus"}, `unknown command "bogus" for "helpnav shell"`},
 		{[]string{"shell", "bogus", "--json"}, `unknown command "bogus" for "helpnav shell"`},
 		{[]string{"shell", "bogus", "--help"}, `unknown command "bogus" for "helpnav shell"`},
+		{[]string{"help", "nosuch"}, `unknown command "nosuch" for "helpnav"`},
+		{[]string{"help", "shell", "bogus"}, `unknown command "bogus" for "helpnav shell"`},
 	} {
 		err := runLine(t, c.args...)
 		if !errors.Is(err, goclikit.ErrUsage) {
